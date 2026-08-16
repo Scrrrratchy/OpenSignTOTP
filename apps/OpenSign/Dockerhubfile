@@ -7,8 +7,10 @@ WORKDIR /usr/src/app
 # Copy package.json and package-lock.json first to leverage Docker cache
 COPY apps/OpenSign/package*.json ./
 
-# Install application dependencies
-RUN npm install
+# Install application dependencies. The committed npm lockfile was generated on
+# Windows and omits Rolldown's Linux native binding, so install it explicitly for
+# the linux/amd64 image build.
+RUN npm install && npm install --no-save @rolldown/binding-linux-x64-gnu@1.0.3
 
 # Copy the current directory contents into the container
 COPY apps/OpenSign/ .
