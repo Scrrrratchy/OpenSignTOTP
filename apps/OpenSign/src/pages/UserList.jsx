@@ -34,6 +34,7 @@ const UserList = () => {
   const [isActiveModal, setIsActiveModal] = useState({});
   const [isActLoader, setIsActLoader] = useState({});
   const [isAdmin, setIsAdmin] = useState(false);
+  const [mfaStatus, setMfaStatus] = useState({});
   const [formHeader, setFormHeader] = useState(t("add-user"));
   const [deleteUserRes, setDeleteUserRes] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -108,9 +109,10 @@ const UserList = () => {
       const extUser =
         localStorage.getItem("Extand_Class") &&
         JSON.parse(localStorage.getItem("Extand_Class"))?.[0];
+      let admin = false;
 
       if (extUser) {
-        const admin =
+        admin =
           extUser?.UserRole &&
           (extUser?.UserRole === "contracts_Admin" ||
             extUser?.UserRole === "contracts_OrgAdmin")
@@ -123,6 +125,10 @@ const UserList = () => {
       });
       const _userRes = JSON.parse(JSON.stringify(res));
       setUserList(_userRes);
+      const userIds = _userRes.map((user) => user?.UserId?.objectId).filter(Boolean);
+      if (admin && userIds.length) {
+        setMfaStatus(await Parse.Cloud.run("getMfaAdminStatus", { userIds }));
+      }
     } catch (err) {
       console.log("Err in fetch userlist", err);
       showAlert("danger", t("something-went-wrong-mssg"));
@@ -277,6 +283,21 @@ const UserList = () => {
       showAlert("danger", t(err.message), 2000);
     } finally {
       setIsLoader(false);
+    }
+  });
+  const resetMfa = withSessionValidation(async (item) => {
+    const userId = item?.UserId?.objectId;
+    if (!userId || !mfaStatus[userId]) return;
+    if (!window.confirm(t("delete-two-factor-authentication"))) return;
+    setIsActLoader({ [item.objectId]: true });
+    try {
+      await Parse.Cloud.run("adminResetMfa", { userId });
+      setMfaStatus((current) => ({ ...current, [userId]: false }));
+      showAlert("success", t("2fa-reset-successfully"));
+    } catch (err) {
+      showAlert("danger", err.message);
+    } finally {
+      setIsActLoader({});
     }
   });
   return (
@@ -443,6 +464,23 @@ const UserList = () => {
                                           )}
                                         </React.Fragment>
                                       ))}
+                                    <button
+                                      type="button"
+                                      className={`op-btn op-btn-sm mr-1 ${
+                                        mfaStatus[item?.UserId?.objectId]
+                                          ? "op-btn-primary"
+                                          : "op-btn-ghost"
+                                      }`}
+                                      title={
+                                        mfaStatus[item?.UserId?.objectId]
+                                          ? t("delete-two-factor-authentication")
+                                          : t("two-factor-authentication")
+                                      }
+                                      disabled={!mfaStatus[item?.UserId?.objectId]}
+                                      onClick={() => resetMfa(item)}
+                                    >
+                                      <i className="fa-light fa-shield-check"></i>
+                                    </button>
                                   </div>
                                 </td>
                               )}

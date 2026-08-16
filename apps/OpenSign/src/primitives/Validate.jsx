@@ -9,14 +9,25 @@ const Validate = () => {
     (async () => {
       if (localStorage.getItem("accesstoken")) {
         try {
-          const userDetails = JSON.parse(
+          const storedParseUser = JSON.parse(
             localStorage.getItem(
               `Parse/${localStorage.getItem("parseAppId")}/currentUser`
-            )
+            ) || "null"
           );
+          const storedUser = JSON.parse(
+            localStorage.getItem("UserInformation") || "null"
+          );
+          const userId =
+            Parse.User.current()?.id ||
+            storedParseUser?.objectId ||
+            storedUser?.objectId;
+          if (!userId) {
+            setIsUserValid(false);
+            return;
+          }
           // Use the session token to validate the user
           const userQuery = new Parse.Query(Parse.User);
-          const user = await userQuery.get(userDetails?.objectId, {
+          const user = await userQuery.get(userId, {
             sessionToken: localStorage.getItem("accesstoken")
           });
           if (user) {

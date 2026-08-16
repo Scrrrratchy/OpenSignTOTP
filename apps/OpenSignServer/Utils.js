@@ -140,7 +140,9 @@ export function sanitizeFileName(fileName) {
 }
 
 export const useLocal = process.env.USE_LOCAL ? process.env.USE_LOCAL.toLowerCase() : 'false';
-export const smtpsecure = process.env.SMTP_PORT && process.env.SMTP_PORT !== '465' ? false : true;
+export const smtpsecure = process.env.SMTP_SECURE
+  ? process.env.SMTP_SECURE.toLowerCase() === 'true'
+  : String(process.env.SMTP_PORT || '465') === '465';
 export const smtpenable =
   process.env.SMTP_ENABLE && process.env.SMTP_ENABLE.toLowerCase() === 'true' ? true : false;
 export const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

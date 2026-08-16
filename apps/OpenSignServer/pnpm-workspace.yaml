@@ -1,0 +1,7 @@
+allowBuilds:
+  '@apollo/protobufjs': set this to true or false
+  '@firebase/util': set this to true or false
+  core-js-pure: set this to true or false
+  parse-server: set this to true or false
+  protobufjs: set this to true or false
+  sharp: set this to true or false

@@ -26,19 +26,20 @@ async function sendMailProvider(params) {
     let mailgunClient;
     let mailgunDomain;
     if (smtpenable) {
-      let transporterConfig = {
+      const transporterConfig = {
         host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT || 465,
+        port: Number(process.env.SMTP_PORT || 465),
         secure: smtpsecure,
+        requireTLS: process.env.SMTP_REQUIRE_TLS?.toLowerCase() === 'true',
       };
 
       // ✅ Add auth only if BOTH username & password exist
-      const smtpUser = process.env.SMTP_USERNAME;
+      const smtpUser = process.env.SMTP_USERNAME || process.env.SMTP_USER_EMAIL;
       const smtpPass = process.env.SMTP_PASS;
 
       if (smtpUser && smtpPass) {
         transporterConfig.auth = {
-          user: process.env.SMTP_USERNAME ? process.env.SMTP_USERNAME : process.env.SMTP_USER_EMAIL,
+          user: smtpUser,
           pass: smtpPass,
         };
       }
@@ -132,7 +133,9 @@ async function sendMailProvider(params) {
             attachment = [file];
           }
           const from = params.from || '';
-          const mailsender = smtpenable ? process.env.SMTP_USER_EMAIL : process.env.MAILGUN_SENDER;
+          const mailsender = smtpenable
+            ? process.env.SMTP_FROM || process.env.SMTP_USER_EMAIL || process.env.SMTP_USERNAME
+            : process.env.MAILGUN_SENDER;
           const replyto = params?.replyto || '';
           const messageParams = {
             from: from + ' <' + mailsender + '>',
@@ -185,7 +188,9 @@ async function sendMailProvider(params) {
       }
     } else {
       const from = params.from || '';
-      const mailsender = smtpenable ? process.env.SMTP_USER_EMAIL : process.env.MAILGUN_SENDER;
+      const mailsender = smtpenable
+        ? process.env.SMTP_FROM || process.env.SMTP_USER_EMAIL || process.env.SMTP_USERNAME
+        : process.env.MAILGUN_SENDER;
       const replyto = params?.replyto || '';
       const messageParams = {
         from: from + ' <' + mailsender + '>',

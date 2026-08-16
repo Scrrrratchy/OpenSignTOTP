@@ -63,19 +63,22 @@ let mailgunDomain;
 let isMailAdapter = false;
 if (smtpenable) {
   try {
-    let transporterConfig = {
+    const transporterConfig = {
       host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT || 465,
+      port: Number(process.env.SMTP_PORT || 465),
       secure: smtpsecure,
+      requireTLS: process.env.SMTP_REQUIRE_TLS?.toLowerCase() === 'true',
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
     };
 
     // ✅ Add auth only if BOTH username & password exist
-    const smtpUser = process.env.SMTP_USERNAME;
+    const smtpUser = process.env.SMTP_USERNAME || process.env.SMTP_USER_EMAIL;
     const smtpPass = process.env.SMTP_PASS;
 
     if (smtpUser && smtpPass) {
       transporterConfig.auth = {
-        user: process.env.SMTP_USERNAME ? process.env.SMTP_USERNAME : process.env.SMTP_USER_EMAIL,
+        user: smtpUser,
         pass: smtpPass,
       };
     }
@@ -100,7 +103,9 @@ if (smtpenable) {
     console.log('Please provide valid Mailgun credentials');
   }
 }
-const mailsender = smtpenable ? process.env.SMTP_USER_EMAIL : process.env.MAILGUN_SENDER;
+const mailsender = smtpenable
+  ? process.env.SMTP_FROM || process.env.SMTP_USER_EMAIL || process.env.SMTP_USERNAME
+  : process.env.MAILGUN_SENDER;
 export const config = {
   databaseURI:
     process.env.DATABASE_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/dev',
@@ -170,6 +175,15 @@ export const app = express();
 app.use(cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
+app.get('/health', (req, res) => {
+  const mailConfigured = smtpenable || Boolean(process.env.MAILGUN_API_KEY);
+  const healthy = !mailConfigured || isMailAdapter;
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? 'ok' : 'degraded',
+    database: 'configured',
+    mail: !mailConfigured ? 'not-configured' : isMailAdapter ? 'ready' : 'unavailable',
+  });
+});
 app.use(function (req, res, next) {
   req.headers['x-real-ip'] = getUserIP(req);
   const publicUrl = 'https://' + req?.get('host');

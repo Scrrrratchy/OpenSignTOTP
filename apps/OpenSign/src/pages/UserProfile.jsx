@@ -1,7 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-} from "react";
+import React, { useState, useEffect } from "react";
 import { Navigate, useNavigate } from "react-router";
 import Parse from "parse";
 import { SaveFileSize } from "../constant/saveFileSize";
@@ -13,14 +10,12 @@ import {
 } from "../utils";
 import axios from "axios";
 import Tooltip from "../primitives/Tooltip";
-import {
-  getSecureUrl,
-  handleSendOTP
-} from "../constant/Utils";
+import { getSecureUrl, handleSendOTP } from "../constant/Utils";
 import ModalUi from "../primitives/ModalUi";
 import Loader from "../primitives/Loader";
 import { useTranslation } from "react-i18next";
 import SelectLanguage from "../components/pdf/SelectLanguage";
+import MfaSettings from "../components/MfaSettings";
 
 function UserProfile() {
   const navigate = useNavigate();
@@ -137,7 +132,7 @@ function UserProfile() {
         Name: obj.Name,
         JobTitle: jobTitle,
         Company: company,
-        Language: obj?.language || "",
+        Language: obj?.language || ""
       };
 
       await axios.put(
@@ -302,184 +297,202 @@ function UserProfile() {
           <Loader />
         </div>
       ) : (
-        <div className="flex justify-center items-center w-full relative">
-          <div className="bg-base-100 text-base-content flex flex-col justify-center shadow-md rounded-box w-[450px]">
-            <div className="flex flex-col justify-center items-center my-4">
-              <div className="w-[200px] h-[200px] overflow-hidden rounded-full">
-                <img
-                  className="object-contain w-full h-full"
-                  src={Image === "" ? dp : Image}
-                  alt="dp"
-                />
-              </div>
-              {editmode && (
-                <input
-                  type="file"
-                  className="op-file-input op-file-input-bordered op-file-input-sm max-w-[270px] mt-4 text-sm"
-                  accept="image/png, image/gif, image/jpeg"
-                  onChange={fileUpload}
-                />
-              )}
-              {percentage !== 0 && (
-                <div className="flex items-center gap-x-2">
-                  <div className="h-2 rounded-full w-[200px] md:w-[400px] bg-gray-200">
-                    <div
-                      className="h-2 rounded-full bg-blue-500"
-                      style={{ width: `${percentage}%` }}
-                    ></div>
-                  </div>
-                  <span className="text-base-contentk text-sm">
-                    {percentage}%
-                  </span>
+        <div className="w-full max-w-5xl mx-auto px-3 py-4 md:px-6 md:py-6 relative">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(320px,2fr)] gap-4 items-start">
+            <div className="bg-base-100 text-base-content flex flex-col border border-base-300 shadow-sm rounded-lg w-full overflow-hidden">
+              <div className="flex flex-col sm:flex-row justify-center sm:justify-start items-center gap-4 px-5 py-5 sm:px-6 border-b border-base-300">
+                <div className="w-28 h-28 shrink-0 overflow-hidden rounded-full border border-base-300 bg-base-200">
+                  <img
+                    className="object-cover w-full h-full"
+                    src={Image === "" ? dp : Image}
+                    alt={t("profile")}
+                  />
                 </div>
-              )}
-              <div className="text-base font-semibold pt-4">
-                {localStorage.getItem("_user_role")}
-              </div>
-            </div>
-            <ul className="w-full flex flex-col p-2 text-sm">
-              <li
-                className={`flex justify-between items-center border-y-[1px] border-gray-300 break-all ${
-                  editmode ? "py-1.5" : "py-2"
-                }`}
-              >
-                <span className="font-semibold">{t("name")}:</span>{" "}
-                {editmode ? (
-                  <input
-                    type="text"
-                    value={name}
-                    className="op-input op-input-bordered op-input-sm w-[180px] focus:outline-none hover:border-base-content text-sm"
-                    onChange={(e) => SetName(e.target.value)}
-                  />
-                ) : (
-                  <span>{localStorage.getItem("username")}</span>
-                )}
-              </li>
-              <li
-                className={`flex justify-between items-center border-b-[1px] border-gray-300 break-all ${
-                  editmode ? "py-1.5" : "py-2"
-                }`}
-              >
-                <span className="font-semibold">{t("phone")}:</span>{" "}
-                {editmode ? (
-                  <input
-                    type="text"
-                    className="op-input op-input-bordered op-input-sm w-[180px] focus:outline-none hover:border-base-content text-sm"
-                    onChange={(e) => SetPhone(e.target.value)}
-                    value={Phone}
-                  />
-                ) : (
-                  <span>{UserProfile && UserProfile.phone}</span>
-                )}
-              </li>
-              <li className="flex justify-between items-center border-b-[1px] border-gray-300 py-2 break-all">
-                <span
-                  data-tooltip-id="email-tooltip"
-                  className="font-semibold flex gap-1"
-                >
-                  {t("email")} :{" "}
+                <div className="min-w-0 text-center sm:text-left flex-1">
+                  <h1 className="text-xl font-semibold break-words">
+                    {localStorage.getItem("username")}
+                  </h1>
+                  <p className="text-sm text-base-content/60 mt-1">
+                    {localStorage.getItem("_user_role")}
+                  </p>
                   {editmode && (
-                    <Tooltip
-                      message={t("email-help")}
-                      maxWidth="max-w-[250px]"
+                    <input
+                      type="file"
+                      className="op-file-input op-file-input-bordered op-file-input-sm w-full max-w-sm mt-3 text-sm"
+                      accept="image/png, image/gif, image/jpeg"
+                      onChange={fileUpload}
                     />
                   )}
-                </span>
-                <span>{UserProfile && UserProfile.email}</span>
-              </li>
-              <li
-                className={`flex justify-between items-center border-b-[1px] border-gray-300 break-all ${
-                  editmode ? "py-1.5" : "py-2"
-                }`}
-              >
-                <span className="font-semibold">{t("company")}:</span>{" "}
-                {editmode ? (
-                  <input
-                    type="text"
-                    value={company}
-                    className="op-input op-input-bordered op-input-sm w-[180px] focus:outline-none hover:border-base-content text-sm"
-                    onChange={(e) => setCompany(e.target.value)}
-                  />
-                ) : (
-                  <span>{extendUser?.[0].Company}</span>
-                )}
-              </li>
-              <li
-                className={`flex justify-between items-center border-b-[1px] border-gray-300 break-all ${
-                  editmode ? "py-1.5" : "py-2"
-                }`}
-              >
-                <span className="font-semibold">{t("job-title")}:</span>{" "}
-                {editmode ? (
-                  <input
-                    type="text"
-                    value={jobTitle}
-                    className="op-input op-input-bordered op-input-sm w-[180px] focus:outline-none hover:border-base-content text-sm"
-                    onChange={(e) => setJobTitle(e.target.value)}
-                  />
-                ) : (
-                  <span>{extendUser?.[0]?.JobTitle}</span>
-                )}
-              </li>
-              <li className="flex justify-between items-center border-b-[1px] border-gray-300 py-2 break-all">
-                <span className="font-semibold">{t("is-email-verified")}:</span>{" "}
-                <span>
-                  {isEmailVerified ? (
-                    t("verified")
-                  ) : (
-                    <span>
-                      {t("not-verified")} (
-                      <span
-                        onClick={() => handleVerifyBtn()}
-                        className="hover:underline text-blue-600 cursor-pointer"
-                      >
-                        {t("verify")}
+                  {percentage !== 0 && (
+                    <div className="flex items-center gap-x-2 mt-3 max-w-sm">
+                      <div className="h-2 rounded-full flex-1 bg-base-200 overflow-hidden">
+                        <div
+                          className="h-2 rounded-full bg-primary"
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-base-content text-xs tabular-nums">
+                        {percentage}%
                       </span>
-                      )
+                    </div>
+                  )}
+                </div>
+              </div>
+              <ul className="w-full flex flex-col px-5 sm:px-6 text-sm">
+                <li
+                  className={`grid grid-cols-[minmax(110px,0.8fr)_minmax(0,1.2fr)] gap-4 items-center border-b border-base-300 ${
+                    editmode ? "py-2" : "py-3"
+                  }`}
+                >
+                  <span className="font-semibold">{t("name")}:</span>{" "}
+                  {editmode ? (
+                    <input
+                      type="text"
+                      value={name}
+                      className="op-input op-input-bordered op-input-sm w-full focus:outline-none hover:border-base-content text-sm"
+                      onChange={(e) => SetName(e.target.value)}
+                    />
+                  ) : (
+                    <span className="break-words text-right">
+                      {localStorage.getItem("username")}
                     </span>
                   )}
-                </span>
-              </li>
-              <li
-                className={`flex justify-between items-center border-b-[1px] border-gray-300 break-all ${
-                  editmode ? "py-1.5" : "py-2"
-                }`}
-              >
-                <span className="font-semibold">{t("language")}:</span>{" "}
-                <SelectLanguage
-                  isProfile={true}
-                  updateExtUser={updateExtUser}
-                />
-              </li>
-            </ul>
-            <div className="flex flex-col md:flex-row justify-center gap-2 pt-2 pb-3 md:pt-3 md:pb-4 mx-2 md:mx-0">
-              <button
-                type="button"
-                onClick={(e) => {
+                </li>
+                <li
+                  className={`grid grid-cols-[minmax(110px,0.8fr)_minmax(0,1.2fr)] gap-4 items-center border-b border-base-300 ${
+                    editmode ? "py-2" : "py-3"
+                  }`}
+                >
+                  <span className="font-semibold">{t("phone")}:</span>{" "}
+                  {editmode ? (
+                    <input
+                      type="text"
+                      className="op-input op-input-bordered op-input-sm w-full focus:outline-none hover:border-base-content text-sm"
+                      onChange={(e) => SetPhone(e.target.value)}
+                      value={Phone}
+                    />
+                  ) : (
+                    <span className="break-words text-right">
+                      {UserProfile && UserProfile.phone}
+                    </span>
+                  )}
+                </li>
+                <li className="grid grid-cols-[minmax(110px,0.8fr)_minmax(0,1.2fr)] gap-4 items-center border-b border-base-300 py-3">
+                  <span
+                    data-tooltip-id="email-tooltip"
+                    className="font-semibold flex gap-1"
+                  >
+                    {t("email")} :{" "}
+                    {editmode && (
+                      <Tooltip
+                        message={t("email-help")}
+                        maxWidth="max-w-[250px]"
+                      />
+                    )}
+                  </span>
+                  <span className="break-words text-right">
+                    {UserProfile && UserProfile.email}
+                  </span>
+                </li>
+                <li
+                  className={`grid grid-cols-[minmax(110px,0.8fr)_minmax(0,1.2fr)] gap-4 items-center border-b border-base-300 ${
+                    editmode ? "py-2" : "py-3"
+                  }`}
+                >
+                  <span className="font-semibold">{t("company")}:</span>{" "}
+                  {editmode ? (
+                    <input
+                      type="text"
+                      value={company}
+                      className="op-input op-input-bordered op-input-sm w-full focus:outline-none hover:border-base-content text-sm"
+                      onChange={(e) => setCompany(e.target.value)}
+                    />
+                  ) : (
+                    <span className="break-words text-right">
+                      {extendUser?.[0].Company}
+                    </span>
+                  )}
+                </li>
+                <li
+                  className={`grid grid-cols-[minmax(110px,0.8fr)_minmax(0,1.2fr)] gap-4 items-center border-b border-base-300 ${
+                    editmode ? "py-2" : "py-3"
+                  }`}
+                >
+                  <span className="font-semibold">{t("job-title")}:</span>{" "}
+                  {editmode ? (
+                    <input
+                      type="text"
+                      value={jobTitle}
+                      className="op-input op-input-bordered op-input-sm w-full focus:outline-none hover:border-base-content text-sm"
+                      onChange={(e) => setJobTitle(e.target.value)}
+                    />
+                  ) : (
+                    <span className="break-words text-right">
+                      {extendUser?.[0]?.JobTitle}
+                    </span>
+                  )}
+                </li>
+                <li className="grid grid-cols-[minmax(110px,0.8fr)_minmax(0,1.2fr)] gap-4 items-center border-b border-base-300 py-3">
+                  <span className="font-semibold">
+                    {t("is-email-verified")}:
+                  </span>{" "}
+                  <span className="break-words text-right">
+                    {isEmailVerified ? (
+                      t("verified")
+                    ) : (
+                      <span>
+                        {t("not-verified")} (
+                        <span
+                          onClick={() => handleVerifyBtn()}
+                          className="hover:underline text-blue-600 cursor-pointer"
+                        >
+                          {t("verify")}
+                        </span>
+                        )
+                      </span>
+                    )}
+                  </span>
+                </li>
+                <li
+                  className={`grid grid-cols-[minmax(110px,0.8fr)_minmax(0,1.2fr)] gap-4 items-center border-b border-base-300 ${
+                    editmode ? "py-2" : "py-3"
+                  }`}
+                >
+                  <span className="font-semibold">{t("language")}:</span>{" "}
+                  <SelectLanguage
+                    isProfile={true}
+                    updateExtUser={updateExtUser}
+                  />
+                </li>
+              </ul>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 px-5 py-5 sm:px-6">
+                <button
+                  type="button"
+                  onClick={(e) => {
                     editmode ? handleSubmit(e) : setEditMode(true);
-                }}
-                className="op-btn op-btn-primary md:w-[100px]"
-              >
-                {editmode ? t("save") : t("edit")}
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  editmode ? handleCancel() : navigate("/changepassword")
-                }
-                className={
-                      `op-btn ${editmode ? "op-btn-ghost w-[100px]" : "op-btn-secondary"}`
-                }
-              >
-                {editmode ? t("cancel") : t("change-password")}
-              </button>
-              <button
-                onClick={() => handleDeleteAccountBtn()}
-                className="op-link op-link-accent text-sm mx-2"
-              >
-                {t("delete-account")}
-              </button>
+                  }}
+                  className="op-btn op-btn-primary sm:min-w-[100px]"
+                >
+                  {editmode ? t("save") : t("edit")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    editmode ? handleCancel() : navigate("/changepassword")
+                  }
+                  className={`op-btn ${editmode ? "op-btn-ghost sm:min-w-[100px]" : "op-btn-secondary"}`}
+                >
+                  {editmode ? t("cancel") : t("change-password")}
+                </button>
+                <button
+                  onClick={() => handleDeleteAccountBtn()}
+                  className="op-link op-link-accent text-sm sm:ml-auto px-2 py-2"
+                >
+                  {t("delete-account")}
+                </button>
+              </div>
             </div>
+            <MfaSettings />
           </div>
           {isdeleteModal && (
             <ModalUi

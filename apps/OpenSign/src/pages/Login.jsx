@@ -44,6 +44,12 @@ function Login() {
     Destination: ""
   });
   const [isModal, setIsModal] = useState(false);
+  const [mfa, setMfa] = useState({
+    challengeId: "",
+    code: "",
+    useRecovery: false,
+    error: ""
+  });
   const [image, setImage] = useState();
   const [errMsg, setErrMsg] = useState();
   useEffect(() => {
@@ -117,6 +123,16 @@ function Login() {
         setState({ ...state, loading: false });
         return;
       }
+      if (_user.requires2FA) {
+        setMfa({
+          challengeId: _user.challengeId,
+          code: "",
+          useRecovery: false,
+          error: ""
+        });
+        setState({ ...state, loading: false });
+        return;
+      }
       // Get extended user data (including 2FA status) using cloud function
       try {
         await Parse.User.become(_user.sessionToken);
@@ -133,6 +149,24 @@ function Login() {
       } else {
         showToast("danger", t("invalid-username-password-region"));
       }
+    }
+  };
+  const handleMfaVerification = async (event) => {
+    event.preventDefault();
+    setState({ ...state, loading: true });
+    setMfa((current) => ({ ...current, error: "" }));
+    try {
+      const params = mfa.useRecovery
+        ? { challengeId: mfa.challengeId, recoveryCode: mfa.code }
+        : { challengeId: mfa.challengeId, token: mfa.code };
+      const user = await Parse.Cloud.run("verifyMfaLogin", params);
+      await Parse.User.become(user.sessionToken);
+      setLocalVar(user);
+      setMfa({ challengeId: "", code: "", useRecovery: false, error: "" });
+      await continueLoginFlow();
+    } catch (error) {
+      setState({ ...state, loading: false });
+      setMfa((current) => ({ ...current, error: error.message }));
     }
   };
   const handleLoginBtn = async (event) => {
@@ -609,6 +643,53 @@ function Login() {
                   type="button"
                   className="op-btn op-btn-ghost text-base-content"
                   onClick={logOutUser}
+                >
+                  {t("cancel")}
+                </button>
+              </div>
+            </form>
+          </ModalUi>
+          <ModalUi
+            isOpen={Boolean(mfa.challengeId)}
+            title={t("two-factor-verification")}
+            showClose={false}
+            isLoader={state.loading}
+          >
+            <form onSubmit={handleMfaVerification} className="px-5 py-4 text-base-content">
+              <p className="text-sm mb-4">
+                {mfa.useRecovery
+                  ? t("enter-recovery-code-help")
+                  : t("enter-verification-code-instructions")}
+              </p>
+              {mfa.error && <div className="mb-3"><Alert type="danger">{mfa.error}</Alert></div>}
+              <label htmlFor="login-mfa-code" className="block text-sm font-semibold mb-1">
+                {mfa.useRecovery ? t("recovery-code") : t("verification-code")}
+              </label>
+              <input
+                id="login-mfa-code"
+                className="op-input op-input-bordered w-full"
+                inputMode={mfa.useRecovery ? "text" : "numeric"}
+                autoComplete="one-time-code"
+                pattern={mfa.useRecovery ? undefined : "[0-9]{6}"}
+                maxLength={mfa.useRecovery ? 9 : 6}
+                autoFocus
+                required
+                value={mfa.code}
+                onChange={(event) => setMfa({ ...mfa, code: event.target.value })}
+              />
+              <button
+                type="button"
+                className="op-link op-link-primary text-xs mt-2"
+                onClick={() => setMfa({ ...mfa, code: "", useRecovery: !mfa.useRecovery, error: "" })}
+              >
+                {mfa.useRecovery ? t("use-verification-code-instead") : t("use-recovery-code-instead")}
+              </button>
+              <div className="flex gap-2 mt-4">
+                <button type="submit" className="op-btn op-btn-primary flex-1">{t("verify")}</button>
+                <button
+                  type="button"
+                  className="op-btn op-btn-ghost"
+                  onClick={() => setMfa({ challengeId: "", code: "", useRecovery: false, error: "" })}
                 >
                   {t("cancel")}
                 </button>
