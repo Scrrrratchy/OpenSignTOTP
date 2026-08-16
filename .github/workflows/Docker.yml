@@ -13,6 +13,7 @@ jobs:
   publish:
     name: Publish ${{ matrix.component }}
     runs-on: ubuntu-latest
+    environment: Dockerhub
     strategy:
       fail-fast: false
       matrix:
