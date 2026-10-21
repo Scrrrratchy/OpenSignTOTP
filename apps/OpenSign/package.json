@@ -79,6 +79,7 @@
     "zustand": "^4.5.1"
   },
   "scripts": {
+    "test:tour": "vitest run",
     "build": "npm run version && NODE_OPTIONS=\"--max-old-space-size=8192\" vite build",
     "start-dev": "vite",
     "dev": "vite",

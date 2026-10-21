@@ -120,6 +120,43 @@ test(
       const login = (mfaCode, email = member.email) =>
         api('/functions/loginuser', { email, password: 'Test-password-123!', mfaCode });
       let setup, codes;
+      await t.test(
+        'dashboard tour dismissal requires the owner session and persists across logins',
+        async () => {
+          const endpoint = `/classes/contracts_Users/${member.extId}`;
+          await api(
+            endpoint,
+            {
+              ACL: { [member.objectId]: { read: true, write: true } },
+              TourStatus: [{ requestSign: true }],
+            },
+            null,
+            true,
+            'PUT'
+          );
+          const dismissal = { TourStatus: { __op: 'AddUnique', objects: [{ loginTour: true }] } };
+          assert.ok((await api(endpoint, dismissal, null, false, 'PUT')).status >= 400);
+          assert.ok(
+            (await api(endpoint, dismissal, other.sessionToken, false, 'PUT')).status >= 400
+          );
+          assert.equal(
+            (await api(endpoint, dismissal, member.sessionToken, false, 'PUT')).status,
+            200
+          );
+          assert.equal(
+            (await api(endpoint, dismissal, member.sessionToken, false, 'PUT')).status,
+            200
+          );
+          const newLogin = await api('/login', {
+            username: member.email,
+            password: 'Test-password-123!',
+          });
+          assert.equal(newLogin.status, 200, JSON.stringify(newLogin.body));
+          const details = (await call('getUserDetails', {}, newLogin.body.sessionToken)).body
+            .result;
+          assert.deepEqual(details.TourStatus, [{ requestSign: true }, { loginTour: true }]);
+        }
+      );
       await t.test('secrets are private and setup must be confirmed', async () => {
         assert.equal((await call('mfaSetup', {}, null)).status, 400);
         setup = (await call('mfaSetup')).body.result;

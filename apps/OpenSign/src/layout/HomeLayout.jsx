@@ -1,8 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { runtimeUrls } from "../constant/const";
-import {
-  nonPresentMaskCss
-} from "../constant/Utils";
+import { nonPresentMaskCss } from "../constant/Utils";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import Sidebar from "../components/sidebar/Sidebar";
@@ -11,18 +9,14 @@ import Tour from "../primitives/Tour";
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
 import Parse from "parse";
-import {
-  useLocation,
-  Outlet
-} from "react-router";
+import { useLocation, Outlet } from "react-router";
 import Loader from "../primitives/Loader";
 import { useTranslation } from "react-i18next";
 import { sessionStatus } from "../redux/reducers/userReducer";
 import SessionExpiredModal from "../primitives/SessionExpiredModal";
 
 const HomeLayout = () => {
-  const appName =
-    "OpenSign™";
+  const appName = "OpenSign™";
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const isEditorRoute = [
@@ -42,6 +36,9 @@ const HomeLayout = () => {
   const [isTour, setIsTour] = useState(false);
   const [tourStatusArr, setTourStatusArr] = useState([]);
   const [tourConfigs, setTourConfigs] = useState([]);
+  const [tourSaveFailed, setTourSaveFailed] = useState(false);
+  const tourDismissed = useRef(false);
+  const tourStatusRequest = useRef(0);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const tenantId = localStorage.getItem("TenantId");
 
@@ -66,8 +63,8 @@ const HomeLayout = () => {
             });
             if (user) {
               localStorage.setItem("profileImg", user.get("ProfilePic") || "");
-                dispatch(sessionStatus(true));
-                setIsLoader(false);
+              dispatch(sessionStatus(true));
+              setIsLoader(false);
             } else {
               dispatch(sessionStatus(true));
             }
@@ -83,13 +80,15 @@ const HomeLayout = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId]);
 
-
   useEffect(() => {
     if (tourArr && tourArr.length > 0) {
       handleDynamicSteps();
     } else {
       setIsTour(false);
     }
+    return () => {
+      tourStatusRequest.current += 1;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tourArr]);
 
@@ -145,45 +144,82 @@ const HomeLayout = () => {
     }
   };
   const closeTour = async () => {
+    if (tourDismissed.current) return;
+    tourDismissed.current = true;
+    tourStatusRequest.current += 1;
     setIsTour(false);
-    const serverUrl = localStorage.getItem("baseUrl");
-    const appId = localStorage.getItem("parseAppId");
-    const json = JSON.parse(localStorage.getItem("Extand_Class"));
-    const extUserId = json && json.length > 0 && json[0].objectId;
-
-    let updatedTourStatus = [];
-    if (tourStatusArr.length > 0) {
-      updatedTourStatus = [...tourStatusArr];
-      const loginTourIndex = tourStatusArr.findIndex(
-        (obj) => obj["loginTour"] === false || obj["loginTour"] === true
-      );
-      if (loginTourIndex !== -1) {
-        updatedTourStatus[loginTourIndex] = { loginTour: true };
-      } else {
-        updatedTourStatus.push({ loginTour: true });
+    setTourSaveFailed(false);
+    try {
+      const serverUrl = localStorage.getItem("baseUrl");
+      const appId = localStorage.getItem("parseAppId");
+      const sessionToken = localStorage.getItem("accesstoken");
+      const json = JSON.parse(localStorage.getItem("Extand_Class"));
+      const extUserId = json && json.length > 0 && json[0].objectId;
+      if (!extUserId || !sessionToken) {
+        throw new Error(
+          "Cannot save tour status without an authenticated user"
+        );
       }
-    } else {
-      updatedTourStatus = [{ loginTour: true }];
-    }
 
-    await axios.put(
-      serverUrl + "classes/contracts_Users/" + extUserId,
-      { TourStatus: updatedTourStatus },
-      { headers: { "X-Parse-Application-Id": appId } }
-    );
+      let updatedTourStatus = [];
+      if (tourStatusArr.length > 0) {
+        updatedTourStatus = [...tourStatusArr];
+        const loginTourIndex = tourStatusArr.findIndex(
+          (obj) => obj["loginTour"] === false || obj["loginTour"] === true
+        );
+        if (loginTourIndex !== -1) {
+          updatedTourStatus[loginTourIndex] = { loginTour: true };
+        } else {
+          updatedTourStatus.push({ loginTour: true });
+        }
+      } else {
+        updatedTourStatus = [{ loginTour: true }];
+      }
+
+      await axios.put(
+        serverUrl + "classes/contracts_Users/" + extUserId,
+        // Append atomically so other tours completed in another tab are retained.
+        { TourStatus: { __op: "AddUnique", objects: [{ loginTour: true }] } },
+        {
+          headers: {
+            "X-Parse-Application-Id": appId,
+            "X-Parse-Session-Token": sessionToken
+          }
+        }
+      );
+      setTourStatusArr(updatedTourStatus);
+      const cachedUsers = JSON.parse(localStorage.getItem("Extand_Class"));
+      if (cachedUsers?.[0]?.objectId === extUserId) {
+        cachedUsers[0].TourStatus = updatedTourStatus;
+        localStorage.setItem("Extand_Class", JSON.stringify(cachedUsers));
+      }
+    } catch (error) {
+      tourDismissed.current = false;
+      setTourSaveFailed(true);
+      console.error("Failed to save introduction tour status:", error);
+    }
   };
 
   async function checkTourStatus() {
-    const cloudRes = await Parse.Cloud.run("getUserDetails");
-    if (cloudRes) {
-      const extUser = JSON.parse(JSON.stringify(cloudRes));
-      localStorage.setItem("Extand_Class", JSON.stringify([extUser]));
-      const tourStatus = extUser?.TourStatus || [];
-      setTourStatusArr(tourStatus);
-      const loginTour = tourStatus.find((obj) => obj.loginTour)?.loginTour;
-      setIsTour(!loginTour);
-    } else {
-      setIsTour(true);
+    if (tourDismissed.current) return;
+    const requestId = ++tourStatusRequest.current;
+    try {
+      const cloudRes = await Parse.Cloud.run("getUserDetails");
+      // Ignore requests from an older dashboard visit or an already closed tour.
+      if (requestId !== tourStatusRequest.current || tourDismissed.current)
+        return;
+      if (cloudRes) {
+        const extUser = JSON.parse(JSON.stringify(cloudRes));
+        localStorage.setItem("Extand_Class", JSON.stringify([extUser]));
+        const tourStatus = extUser?.TourStatus || [];
+        setTourStatusArr(tourStatus);
+        const loginTour = tourStatus.find((obj) => obj.loginTour)?.loginTour;
+        setIsTour(!loginTour);
+      } else {
+        setIsTour(false);
+      }
+    } catch (error) {
+      console.error("Failed to load introduction tour status:", error);
     }
   }
 
@@ -217,6 +253,11 @@ const HomeLayout = () => {
             <Sidebar />
             {/* MAIN (includes both content + footer in one scrollable column) */}
             <PageScrollContainer>
+              {tourSaveFailed && (
+                <div role="alert" className="op-alert op-alert-error m-3">
+                  {t("something-went-wrong-mssg")}
+                </div>
+              )}
               <div className="flex flex-col min-h-full">
                 {/* your page content */}
                 <div className="p-3">{<Outlet />}</div>

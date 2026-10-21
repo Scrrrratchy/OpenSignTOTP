@@ -34,9 +34,28 @@ jobs:
       - run: npm run test:mfa
       - run: npm run test:startup
 
+  test-client:
+    name: Verify dashboard tour dismissal
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/OpenSign
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+          cache: npm
+          cache-dependency-path: apps/OpenSign/package-lock.json
+      - run: npm ci
+      - name: Install Linux native bindings
+        run: npm install --no-save @napi-rs/canvas-linux-x64-gnu@0.1.100 @rolldown/binding-linux-x64-gnu@1.2.14 lightningcss-linux-x64-gnu@1.33.0
+      - run: npm run test:tour
+
   publish:
     name: Publish ${{ matrix.component }}
-    needs: test
+    needs: [test, test-client]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: Dockerhub
