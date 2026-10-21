@@ -64,17 +64,28 @@ import updateEmailTemplates from './parsefunction/updateEmailTemplates.js';
 import triggerEvent from './parsefunction/triggerEvent.js';
 import setWidgetPreferences from './parsefunction/setWidgetPreferences.js';
 import createDocumentFromApp from './parsefunction/createDocumentFromApp.js';
-import testMailConfiguration from './parsefunction/testMailConfiguration.js';
 import {
-  adminResetMfa,
-  beginMfaSetup,
-  confirmMfaSetup,
-  disableMfa,
-  enforceMfaLogin,
-  getMfaAdminStatus,
-  getMfaStatus,
-  verifyMfaLogin,
+  beforeLogin,
+  mfaStatus,
+  mfaSetup,
+  mfaEnable,
+  mfaDisable,
+  mfaAdminList,
+  mfaAdminReset,
 } from './parsefunction/mfa.js';
+import { adminOverview, adminSave } from './parsefunction/onPremAdmin.js';
+import protectUserAdministration from './parsefunction/protectUserAdministration.js';
+import normalizeUserEmail from './parsefunction/normalizeUserEmail.js';
+
+Parse.Cloud.beforeLogin(beforeLogin);
+Parse.Cloud.define('mfaStatus', mfaStatus);
+Parse.Cloud.define('mfaSetup', mfaSetup);
+Parse.Cloud.define('mfaEnable', mfaEnable);
+Parse.Cloud.define('mfaDisable', mfaDisable);
+Parse.Cloud.define('mfaAdminList', mfaAdminList);
+Parse.Cloud.define('mfaAdminReset', mfaAdminReset);
+Parse.Cloud.define('adminOverview', adminOverview);
+Parse.Cloud.define('adminSave', adminSave);
 
 // This afterSave function triggers after an object is added or updated in the specified class, allowing for post-processing logic.
 Parse.Cloud.afterSave('contracts_Document', DocumentAftersave);
@@ -85,6 +96,8 @@ Parse.Cloud.afterSave('contracts_Teams', TeamsAftersave);
 // This beforeSave function triggers before an object is added or updated in the specified class, allowing for validation or modification.
 Parse.Cloud.beforeSave('contracts_Document', DocumentBeforesave);
 Parse.Cloud.beforeSave('contracts_Template', TemplateBeforeSave);
+Parse.Cloud.beforeSave('contracts_Users', protectUserAdministration);
+Parse.Cloud.beforeSave(Parse.User, normalizeUserEmail);
 
 // This afterFind function triggers after a query retrieves objects from the specified class, allowing for post-processing of the results.
 Parse.Cloud.afterFind(Parse.User, UserAfterFind);
@@ -92,7 +105,6 @@ Parse.Cloud.afterFind('contracts_Document', DocumentBeforeFind);
 Parse.Cloud.afterFind('contracts_Template', TemplateAfterFind);
 Parse.Cloud.afterFind('contracts_Signature', SignatureAfterFind);
 Parse.Cloud.afterFind('partners_Tenant', TenantAterFind);
-Parse.Cloud.beforeLogin(enforceMfaLogin);
 
 // This define function creates a custom Cloud Function that can be called from the client-side, enabling custom business logic on the server.
 Parse.Cloud.define('signPdf', PDF);
@@ -150,11 +162,3 @@ Parse.Cloud.define('updateemailtemplates', updateEmailTemplates);
 Parse.Cloud.define('triggerevent', triggerEvent);
 Parse.Cloud.define('setwidgetpreferences', setWidgetPreferences);
 Parse.Cloud.define('createdocumentfromapp', createDocumentFromApp);
-Parse.Cloud.define('getMfaStatus', getMfaStatus);
-Parse.Cloud.define('beginMfaSetup', beginMfaSetup);
-Parse.Cloud.define('confirmMfaSetup', confirmMfaSetup);
-Parse.Cloud.define('disableMfa', disableMfa);
-Parse.Cloud.define('verifyMfaLogin', verifyMfaLogin);
-Parse.Cloud.define('getMfaAdminStatus', getMfaAdminStatus);
-Parse.Cloud.define('adminResetMfa', adminResetMfa);
-Parse.Cloud.define('testMailConfiguration', testMailConfiguration);

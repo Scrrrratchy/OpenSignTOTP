@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { cloudServerUrl, mailTemplate, replaceMailVaribles, serverAppId } from '../../Utils.js';
 import { setDocumentCount } from '../../utils/CountUtils.js';
+import { escapeHtml } from '../../utils/brandContext.js';
 
 import crypto from 'crypto';
 import sendSystemMail from './sendSystemMail.js';
@@ -51,23 +52,23 @@ async function sendOwnerSummaryEmail({
   failedList,
 }) {
   try {
-    const subject = `Bulk send finished: ${failed} of ${total} failed to create`;
+    const subject = `Stapelversand abgeschlossen: ${failed} von ${total} Dokumenten konnten nicht erstellt werden`;
 
     const failureHtml = failedList?.length
       ? `<ul>${failedList
           .slice(0, 50)
-          .map(f => `<li>#${f.index + 1}: ${String(f.error).slice(0, 200)}</li>`)
+          .map(f => `<li>#${f.index + 1}: Das Dokument konnte nicht erstellt werden.</li>`)
           .join('')}</ul>
-         ${failedList.length > 50 ? `<p>…and ${failedList.length - 50} more.</p>` : ''}`
-      : `<p>No failures.</p>`;
+         ${failedList.length > 50 ? `<p>…und ${failedList.length - 50} weitere.</p>` : ''}`
+      : `<p>Keine Fehler.</p>`;
 
     const html = `
-      <p>Hi ${ownerName || ''},</p>
-      <p>Your bulk send processing is complete.</p>
-      <p><b>Total requested:</b> ${total}<br/>
-         <b>Created:</b> ${created}<br/>
-         <b>Failed to create:</b> ${failed}</p>
-      <h4>Failure details</h4>
+      <p>Guten Tag ${escapeHtml(ownerName || '')},</p>
+      <p>Die Verarbeitung Ihres Stapelversands ist abgeschlossen.</p>
+      <p><b>Insgesamt angefordert:</b> ${total}<br/>
+         <b>Erstellt:</b> ${created}<br/>
+         <b>Nicht erstellt:</b> ${failed}</p>
+      <h4>Fehlerdetails</h4>
       ${failureHtml}
     `;
 
@@ -102,7 +103,7 @@ async function sendMail(document, publicUrl) {
   const ExpireDate = new Date(document.createdAt);
   ExpireDate.setDate(ExpireDate.getDate() + timeToCompleteDays);
   const newDate = ExpireDate;
-  const localExpireDate = newDate.toLocaleDateString('en-US', {
+  const localExpireDate = newDate.toLocaleDateString('de-DE', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -153,7 +154,7 @@ async function sendMail(document, publicUrl) {
       if (mailBody && mailSubject) {
         const replacedRequestBody = mailBody.replace(/"/g, "'");
         const htmlReqBody =
-          "<html><head><meta http-equiv='Content-Type' content='text/html; charset=UTF-8' /></head><body>" +
+          "<html lang='de'><head><meta http-equiv='Content-Type' content='text/html; charset=UTF-8' /></head><body>" +
           replacedRequestBody +
           '</body></html>';
         const variables = {
@@ -206,7 +207,6 @@ async function startBulkSendInBackground(userId, Documents, Ip, parseConfig, typ
   if (!resExt) throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, 'User not found.');
 
   const _resExt = JSON.parse(JSON.stringify(resExt));
-
   // Build Parse /batch requests from your existing mapping (same as your current code)
   const requests = Documents.map(x => {
     const Signers = x.Signers;
@@ -327,8 +327,8 @@ export default async function createBatchDocs(request) {
   const Documents = JSON.parse(strDocuments);
 
   const Ip = request?.headers?.['x-real-ip'] || '';
-  // Access the host from the headers
-  const publicUrl = request.headers.public_url;
+  // Use the browser origin so signing links keep the custom domain.
+  let publicUrl = request.headers.origin || request.headers.public_url;
   const parseConfig = {
     baseURL: serverUrl,
     headers: {

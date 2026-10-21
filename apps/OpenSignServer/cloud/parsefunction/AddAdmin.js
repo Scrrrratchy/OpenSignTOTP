@@ -1,8 +1,3 @@
-import axios from 'axios';
-import { cloudServerUrl, serverAppId } from '../../Utils.js';
-const serverUrl = cloudServerUrl; //process.env.SERVER_URL;
-const APPID = serverAppId;
-const masterKEY = process.env.MASTER_KEY;
 async function addTeamAndOrg(extUser) {
   try {
     const extUserCls = new Parse.Query('contracts_Users');
@@ -52,7 +47,7 @@ async function addTeamAndOrg(extUser) {
           objectId: teamRes.id,
         },
       ]);
-      const extUserRes = await updateUser.save(null, { useMasterKey: true });
+      await updateUser.save(null, { useMasterKey: true });
     }
   } catch (err) {
     console.log('err in add team, role, org', err);
@@ -65,22 +60,7 @@ async function saveUser(userDetails) {
   const userRes = await userQuery.first({ useMasterKey: true });
 
   if (userRes) {
-    const url = `${serverUrl}/loginAs`;
-    const axiosRes = await axios({
-      method: 'POST',
-      url: url,
-      headers: {
-        'Content-Type': 'application/json;charset=utf-8',
-        'X-Parse-Application-Id': APPID,
-        'X-Parse-Master-Key': masterKEY,
-      },
-      params: {
-        userId: userRes.id,
-      },
-    });
-    const login = await axiosRes.data;
-    // console.log("login ", login);
-    return { id: login.objectId, sessionToken: login.sessionToken };
+    throw new Parse.Error(119, 'Existing accounts must use the authenticated migration workflow');
   } else {
     const user = new Parse.User();
     user.set('username', userDetails.email?.toLowerCase()?.replace(/\s/g, ''));
@@ -97,7 +77,12 @@ async function saveUser(userDetails) {
   }
 }
 export default async function AddAdmin(request) {
+  const existingAdmin = new Parse.Query('contracts_Users');
+  existingAdmin.equalTo('UserRole', 'contracts_Admin');
+  if (await existingAdmin.first({ useMasterKey: true }))
+    throw new Parse.Error(119, 'Administrator already exists');
   const userDetails = request.params.userDetails;
+  if (userDetails?.role !== 'contracts_Admin') throw new Parse.Error(119, 'Invalid role');
   const user = await saveUser(userDetails);
 
   try {

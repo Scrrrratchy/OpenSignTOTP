@@ -2,22 +2,22 @@ import dotenv from 'dotenv';
 dotenv.config({ quiet: true });
 import express from 'express';
 import cors from 'cors';
-import { ParseServer } from 'parse-server';
 import path from 'path';
 const __dirname = path.resolve();
-import http from 'http';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
 import { ApiPayloadConverter } from 'parse-server-api-mail-adapter';
 import S3Adapter from '@parse/s3-files-adapter';
 import FSFilesAdapter from '@parse/fs-files-adapter';
 import { app as customRoute } from './cloud/customRoute/customApp.js';
-import { exec } from 'child_process';
 import { createTransport } from 'nodemailer';
 import { appName, cloudServerUrl, serverAppId, smtpenable, smtpsecure, useLocal } from './Utils.js';
+import { resolveDeploymentBrand } from './utils/brandContext.js';
 import { SSOAuth } from './auth/authadapter.js';
-import runDbMigrations from './migrationdb/index.js';
+import { startServer } from './startup.js';
+import { databaseUri } from './utils/databaseConfig.js';
 import { validateSignedLocalUrl } from './cloud/parsefunction/getSignedUrl.js';
+import SessionCache from './utils/sessionCache.js';
 let fsAdapter;
 
 if (useLocal !== 'true') {
@@ -63,22 +63,19 @@ let mailgunDomain;
 let isMailAdapter = false;
 if (smtpenable) {
   try {
-    const transporterConfig = {
+    let transporterConfig = {
       host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 465),
+      port: process.env.SMTP_PORT || 465,
       secure: smtpsecure,
-      requireTLS: process.env.SMTP_REQUIRE_TLS?.toLowerCase() === 'true',
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
     };
 
     // ✅ Add auth only if BOTH username & password exist
-    const smtpUser = process.env.SMTP_USERNAME || process.env.SMTP_USER_EMAIL;
+    const smtpUser = process.env.SMTP_USERNAME;
     const smtpPass = process.env.SMTP_PASS;
 
     if (smtpUser && smtpPass) {
       transporterConfig.auth = {
-        user: smtpUser,
+        user: process.env.SMTP_USERNAME ? process.env.SMTP_USERNAME : process.env.SMTP_USER_EMAIL,
         pass: smtpPass,
       };
     }
@@ -103,17 +100,16 @@ if (smtpenable) {
     console.log('Please provide valid Mailgun credentials');
   }
 }
-const mailsender = smtpenable
-  ? process.env.SMTP_FROM || process.env.SMTP_USER_EMAIL || process.env.SMTP_USERNAME
-  : process.env.MAILGUN_SENDER;
+const mailsender = smtpenable ? process.env.SMTP_USER_EMAIL : process.env.MAILGUN_SENDER;
+const deploymentSenderName = resolveDeploymentBrand().senderName;
 export const config = {
-  databaseURI:
-    process.env.DATABASE_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/dev',
-  cloud: function () {
-    import('./cloud/main.js');
-  },
+  databaseURI: databaseUri(),
+  cloud: () => import('./cloud/main.js'),
   appId: serverAppId,
+  cacheAdapter: new SessionCache(),
   logLevel: ['error'],
+  // Parse's default Cloud logs include full function inputs/results (including MFA secrets).
+  logLevels: { cloudFunctionSuccess: 'silent', cloudFunctionError: 'silent' },
   maxLimit: 500,
   maxUploadSize: '100mb',
   masterKey: process.env.MASTER_KEY, //Add your master key here. Keep it secret!
@@ -134,7 +130,7 @@ export const config = {
           module: 'parse-server-api-mail-adapter',
           options: {
             // The email address from which emails are sent.
-            sender: appName + ' <' + mailsender + '>',
+            sender: deploymentSenderName + ' <' + mailsender + '>',
             // The email templates.
             templates: {
               // The template used by Parse Server to send an email for password
@@ -175,32 +171,29 @@ export const app = express();
 app.use(cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
-app.get('/health', (req, res) => {
-  const mailConfigured = smtpenable || Boolean(process.env.MAILGUN_API_KEY);
-  const healthy = !mailConfigured || isMailAdapter;
-  res.status(healthy ? 200 : 503).json({
-    status: healthy ? 'ok' : 'degraded',
-    database: 'configured',
-    mail: !mailConfigured ? 'not-configured' : isMailAdapter ? 'ready' : 'unavailable',
-  });
-});
 app.use(function (req, res, next) {
   req.headers['x-real-ip'] = getUserIP(req);
-  const publicUrl = 'https://' + req?.get('host');
+  let publicUrl = 'https://' + req?.get('host');
   req.headers['public_url'] = publicUrl;
   next();
 });
 function getUserIP(request) {
-  let forwardedFor = request.headers['x-forwarded-for'];
-  if (forwardedFor) {
-    if (forwardedFor.indexOf(',') > -1) {
-      return forwardedFor.split(',')[0];
-    } else {
-      return forwardedFor;
-    }
-  } else {
-    return request.socket.remoteAddress;
+  const cloudflareIp = request.headers['cf-connecting-ip'];
+  if (typeof cloudflareIp === 'string' && cloudflareIp.trim()) {
+    return cloudflareIp.trim();
   }
+
+  const forwardedFor = request.headers['x-forwarded-for'];
+  if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
+    return forwardedFor.split(',')[0].trim();
+  }
+
+  const realIp = request.headers['x-real-ip'];
+  if (typeof realIp === 'string' && realIp.trim()) {
+    return realIp.trim();
+  }
+
+  return request.socket?.remoteAddress || '';
 }
 
 app.use(async function (req, res, next) {
@@ -227,18 +220,6 @@ app.use(async function (req, res, next) {
 // Serve static assets from the /public folder
 app.use('/public', express.static(path.join(__dirname, '/public')));
 
-// Serve the Parse API on the /parse URL prefix
-if (!process.env.TESTING) {
-  const mountPath = process.env.PARSE_MOUNT || '/app';
-  try {
-    const server = new ParseServer(config);
-    await server.start();
-    app.use(mountPath, server.app);
-  } catch (err) {
-    console.log(err);
-    process.exit();
-  }
-}
 // Mount your custom express app
 app.use('/', customRoute);
 
@@ -248,30 +229,16 @@ app.get('/', function (req, res) {
 });
 
 if (!process.env.TESTING) {
-  const port = process.env.PORT || 8080;
-  const httpServer = http.createServer(app);
-  // Set the Keep-Alive and headers timeout to 100 seconds
-  httpServer.keepAliveTimeout = 100000; // in milliseconds
-  httpServer.headersTimeout = 100000; // in milliseconds
-  httpServer.listen(port, '0.0.0.0', function () {
-    console.log('opensign-server running on port ' + port + '.');
-    const isWindows = process.platform === 'win32';
-    // console.log('isWindows', isWindows);
-    runDbMigrations();
-    const migrate = isWindows
-      ? `set APPLICATION_ID=${serverAppId}&& set SERVER_URL=${cloudServerUrl}&& set MASTER_KEY=${process.env.MASTER_KEY}&& npx parse-dbtool migrate`
-      : `APPLICATION_ID=${serverAppId} SERVER_URL=${cloudServerUrl} MASTER_KEY=${process.env.MASTER_KEY} npx parse-dbtool migrate`;
-    exec(migrate, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Error: ${error.message}`);
-        return;
-      }
-
-      if (stderr) {
-        console.error(`Error: ${stderr}`);
-        return;
-      }
-      console.log(`Command output: ${stdout}`);
+  try {
+    await startServer({
+      config,
+      app,
+      port: Number(process.env.PORT || 8080),
+      mountPath: process.env.PARSE_MOUNT || '/app',
     });
-  });
+    console.log('Datenbankmigration abgeschlossen. OpenSign ist bereit.');
+  } catch (error) {
+    console.error('OpenSign wurde wegen eines Migrationsfehlers nicht gestartet:', error.message);
+    process.exit(1);
+  }
 }

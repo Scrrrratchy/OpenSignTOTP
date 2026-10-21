@@ -29,7 +29,7 @@ export default async function getUserListByOrg(req) {
       const callerTenantId = callerExtUser.get('TenantId')?.id;
       const callerOrgId = callerExtUser.get('OrganizationId')?.id;
       const callerRole = callerExtUser.get('UserRole');
-      const isAdmin = callerRole === 'contracts_Admin' || callerRole === 'contracts_OrgAdmin';
+      const isAdmin = callerRole === 'contracts_Admin';
 
       const orgQuery = new Parse.Query('contracts_Organizations');
       const targetOrg = await orgQuery.get(OrganizationId, { useMasterKey: true });

@@ -1,6 +1,6 @@
-Hello!
+Guten Tag!
 
-This is a notice regarding your account:
+Dies ist eine Benachrichtigung zu Ihrem Konto:
 {{username}}
 
 {{appName}}

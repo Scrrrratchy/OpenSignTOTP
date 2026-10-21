@@ -1,31 +1,27 @@
 import { TEditorConfiguration } from "../../documents/editor/core";
 
-const getRequestEmail = (
-): TEditorConfiguration => {
-  const appName =
-    "OpenSign™";
+const getRequestEmail = (): TEditorConfiguration => {
+  const appName = "OpenSign™";
 
-  const logoBlock =
-        {
-          "block-1709571212684": {
-            type: "Image",
-            data: {
-              style: {
-                padding: { top: 24, bottom: 24, right: 24, left: 24 }
-              },
-              props: {
-                width: null,
-                height: 50,
-                url: "https://qikinnovation.ams3.digitaloceanspaces.com/logo.png",
-                alt: "logo",
-                linkHref: null,
-                contentAlignment: "middle"
-              }
-            }
-          }
-        };
-  const logoBlockId =
-        ["block-1709571212684"];
+  const logoBlock = {
+    "block-1709571212684": {
+      type: "Image",
+      data: {
+        style: {
+          padding: { top: 24, bottom: 24, right: 24, left: 24 }
+        },
+        props: {
+          width: null,
+          height: 50,
+          url: "https://qikinnovation.ams3.digitaloceanspaces.com/logo.png",
+          alt: "logo",
+          linkHref: null,
+          contentAlignment: "middle"
+        }
+      }
+    }
+  };
+  const logoBlockId = ["block-1709571212684"];
 
   return {
     root: {
@@ -64,7 +60,7 @@ const getRequestEmail = (
         },
         props: {
           markdown: false,
-          text: "Digital Signature Request"
+          text: "Anfrage zur digitalen Unterzeichnung"
         }
       }
     },
@@ -83,7 +79,7 @@ const getRequestEmail = (
         },
         props: {
           contents:
-            "{{sender_name}} has requested you to review and sign <b>{{document_title}}</b>."
+            "{{sender_name}} bittet Sie, folgendes Dokument zu prüfen und zu unterzeichnen: <b>{{document_title}}</b>."
         }
       }
     },
@@ -141,7 +137,7 @@ const getRequestEmail = (
           }
         },
         props: {
-          text: "Sender"
+          text: "Absender"
         }
       }
     },
@@ -178,7 +174,7 @@ const getRequestEmail = (
           }
         },
         props: {
-          text: "Organization"
+          text: "Organisation"
         }
       }
     },
@@ -215,7 +211,7 @@ const getRequestEmail = (
           }
         },
         props: {
-          text: "Expires on"
+          text: "Gültig bis"
         }
       }
     },
@@ -253,7 +249,7 @@ const getRequestEmail = (
           }
         },
         props: {
-          text: "Note"
+          text: "Hinweis"
         }
       }
     },
@@ -294,7 +290,7 @@ const getRequestEmail = (
           buttonStyle: "rectangle",
           fullWidth: false,
           size: "medium",
-          text: "Sign Here",
+          text: "Jetzt unterzeichnen",
           url: "{{signing_url}}"
         }
       }
@@ -314,7 +310,7 @@ const getRequestEmail = (
           }
         },
         props: {
-          contents: `This is an automated email from ${appName}. For any queries regarding this email, please contact the sender <a href="mailto:{{sender_mail}}" target="_blank">{{sender_mail}}</a> directly.`
+          contents: `Dies ist eine automatisch versendete E-Mail von ${appName}. Bei Fragen zu dieser E-Mail wenden Sie sich bitte direkt an den Absender <a href="mailto:{{sender_mail}}" target="_blank">{{sender_mail}}</a>.`
         }
       }
     }

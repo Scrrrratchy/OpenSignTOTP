@@ -6,7 +6,7 @@ export default async function CheckAdminExist() {
     extClsQuery.notEqualTo('IsDisabled', true);
     const extAdminRes = await extClsQuery.find({ useMasterKey: true });
     // must be only one admin
-    if (extAdminRes && extAdminRes.length === 1 && extAdminRes?.[0]?.get('OrganizationId')) {
+    if (extAdminRes?.some(admin => admin.get('OrganizationId'))) {
       return 'exist';
     } else {
       return 'not_exist';

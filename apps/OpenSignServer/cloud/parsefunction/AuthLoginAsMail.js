@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { cloudServerUrl, serverAppId } from '../../Utils.js';
+import { beforeLogin } from './mfa.js';
 async function AuthLoginAsMail(request) {
   try {
     //function for login user using user objectId without touching user's password
@@ -46,7 +47,14 @@ async function AuthLoginAsMail(request) {
             query.equalTo('email', email);
             query
               .first({ useMasterKey: true })
-              .then(user => {
+              .then(async user => {
+                try {
+                  if (!user) throw new Error('Invalid login');
+                  await beforeLogin({ object: user, context: { mfaCode: request.params.mfaCode } });
+                } catch (error) {
+                  reject(error);
+                  return;
+                }
                 //call loginAs function to use login method passing user objectId as a userId
 
                 const url = `${serverUrl}/loginAs`;

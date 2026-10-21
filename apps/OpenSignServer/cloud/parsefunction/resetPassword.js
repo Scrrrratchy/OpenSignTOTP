@@ -18,6 +18,7 @@ export default async function resetPassword(request) {
     // 1. Get Admin User TenantId
     const adminUserQuery = new Parse.Query('contracts_Users');
     adminUserQuery.equalTo('UserId', request.user);
+    adminUserQuery.notEqualTo('IsDisabled', true);
     const adminUser = await adminUserQuery.first({ useMasterKey: true });
 
     const tenantId = adminUser?.get('TenantId');
@@ -36,6 +37,11 @@ export default async function resetPassword(request) {
     targetUserQuery.equalTo('UserId', { __type: 'Pointer', className: '_User', objectId: userId });
     targetUserQuery.equalTo('TenantId', tenantId);
     targetUserQuery.notEqualTo('UserRole', 'contracts_Admin');
+    if (adminUser.get('UserRole') === 'contracts_OrgAdmin') {
+      if (!adminUser.get('OrganizationId')?.id) throw new Parse.Error(119, 'Unauthorized');
+      targetUserQuery.equalTo('OrganizationId', adminUser.get('OrganizationId'));
+      targetUserQuery.notEqualTo('UserRole', 'contracts_OrgAdmin');
+    }
     const targetUser = await targetUserQuery.first({ useMasterKey: true });
 
     if (!targetUser) {

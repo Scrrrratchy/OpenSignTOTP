@@ -2,6 +2,7 @@ import axios from 'axios';
 import { google } from 'googleapis';
 import fs from 'node:fs';
 import https from 'https';
+import { encodeMimeSubject } from '../../utils/mailHeaders.js';
 const clientId = process.env.GOOGLE_CLIENT_ID;
 const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 // Function to create a Gmail client
@@ -37,6 +38,18 @@ const getGmail = async (access_token, displayName) => {
     return displayName;
   }
 };
+
+export const encodeMimeAddress = address => {
+  const value = String(address || '');
+  const match = value.match(/^(.*?)\s*<([^<>]+)>$/);
+  const displayName = match ? match[1].trim() : value;
+
+  if (/^[\x00-\x7F]*$/.test(displayName)) return value;
+
+  const encodedName = Buffer.from(displayName, 'utf8').toString('base64');
+  return match ? `=?UTF-8?B?${encodedName}?= <${match[2]}>` : `=?UTF-8?B?${encodedName}?=`;
+};
+
 // Function to create a raw email message
 const makeEmail = async (
   to,
@@ -53,6 +66,7 @@ const makeEmail = async (
   testPdf
 ) => {
   const htmlContent = html;
+  const encodedSubject = encodeMimeSubject(subject);
   const boundary = 'boundary_' + Date.now().toString(16);
   const bccHeader = bcc && bcc.length > 0 ? `BCC: ${bcc.join(',')}\n` : ''; // Construct BCC header if provided
   const ccHeader = cc && cc.length > 0 ? `CC: ${cc.join(',')}\n` : ''; // Construct CC header if provided
@@ -137,11 +151,11 @@ const makeEmail = async (
       'Content-Type: multipart/mixed; boundary="' + boundary + '"\n',
       'MIME-Version: 1.0\n',
       `To: ${to}\n`,
-      `From: ${from}\n`,
+      `From: ${encodeMimeAddress(from)}\n`,
       bccHeader,
       ccHeader,
       replyToHeader,
-      `Subject: ${subject}\n\n`,
+      `Subject: ${encodedSubject}\n\n`,
       '--' + boundary + '\n',
       'Content-Type: text/html; charset="UTF-8"\n',
       'MIME-Version: 1.0\n\n',
@@ -155,11 +169,11 @@ const makeEmail = async (
       'Content-Type: multipart/mixed; boundary="' + boundary + '"\n',
       'MIME-Version: 1.0\n',
       `To: ${to}\n`,
-      `From: ${from}\n`,
+      `From: ${encodeMimeAddress(from)}\n`,
       bccHeader,
       ccHeader,
       replyToHeader,
-      `Subject: ${subject}\n\n`,
+      `Subject: ${encodedSubject}\n\n`,
       '--' + boundary + '\n',
       'Content-Type: text/html; charset="UTF-8"\n',
       'MIME-Version: 1.0\n\n',

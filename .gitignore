@@ -2,6 +2,11 @@
 
 # dependencies
 /node_modules
+/.pnpm-store/
+/.audit/
+/.publish/
+/apps/*/node_modules/
+/apps/OpenSignServer/.test-data/
 /.pnp
 .pnp.js
 

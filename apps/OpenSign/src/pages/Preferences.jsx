@@ -25,10 +25,11 @@ import {
   setAlertInfo
 } from "../redux/reducers/userReducer";
 import { useDispatch, useSelector } from "react-redux";
+import SecurityTab from "../components/preferences/SecurityTab";
+import AdministrationTab from "../components/preferences/AdministrationTab";
 
 const Preferences = () => {
-  const appName =
-    "OpenSign™";
+  const appName = "OpenSign™";
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const { isLoader, isTopLoader, alertInfo } = useSelector(
@@ -75,6 +76,7 @@ const Preferences = () => {
       generaltab,
       { name: "widgets", title: t("widgets"), icon: "fa-light fa-list" },
       ...EmailTab,
+      { name: "security", title: t("mfa.security"), icon: "fa-light fa-shield" }
     ];
     setTab(arr);
     try {
@@ -104,6 +106,18 @@ const Preferences = () => {
         return;
       }
       const _getUser = JSON.parse(JSON.stringify(getUser));
+      if (
+        ["contracts_Admin", "contracts_OrgAdmin"].includes(_getUser.UserRole)
+      ) {
+        setTab([
+          ...arr,
+          {
+            name: "administration",
+            title: t("admin.title"),
+            icon: "fa-light fa-users-gear"
+          }
+        ]);
+      }
       dispatch(setUserInfo(_getUser));
       setIsNotifyOnSignatures(
         _getUser?.NotifyOnSignatures !== undefined
@@ -203,7 +217,7 @@ const Preferences = () => {
           Is12HourTime: is12HourTime,
           IsLTVEnabled: isLTVEnabled,
           DownloadFilenameFormat: fileNameFormat,
-          UseNameAsSender: useNameAsSender,
+          UseNameAsSender: useNameAsSender
         };
         const updateRes = await Parse.Cloud.run("updatepreferences", params);
         if (updateRes) {
@@ -235,7 +249,6 @@ const Preferences = () => {
   const handleNotifySignChange = (value) => {
     setIsNotifyOnSignatures(value);
   };
-
 
   const handleTourInput = () => setIsTourEnabled(!isTourEnabled);
   const handleSendinOrderInput = () => setSendinOrder(!sendinOrder);
@@ -404,11 +417,7 @@ const Preferences = () => {
                           </ReactTooltip>
                         </label>
                         <div className="flex flex-row gap-6">
-                          <div
-                            className={
-                              "flex items-center gap-2"
-                            }
-                          >
+                          <div className={"flex items-center gap-2"}>
                             <input
                               id="notify-yes"
                               className="op-radio op-radio-xs"
@@ -423,11 +432,7 @@ const Preferences = () => {
                               {t("yes")}
                             </label>
                           </div>
-                          <div
-                            className={
-                              "flex items-center gap-2"
-                            }
-                          >
+                          <div className={"flex items-center gap-2"}>
                             <input
                               id="notify-no"
                               className="op-radio op-radio-xs"
@@ -521,7 +526,6 @@ const Preferences = () => {
                           </div>
                         </div>
                       </div>
-
 
                       <div className="mb-6">
                         <label
@@ -681,6 +685,10 @@ const Preferences = () => {
                 )}
                 {tabName(activeTab) === "widgets" && <WidgetsTab />}
                 {tabName(activeTab) === "email" && <EmailTab />}
+                {tabName(activeTab) === "security" && <SecurityTab />}
+                {tabName(activeTab) === "administration" && (
+                  <AdministrationTab />
+                )}
               </div>
             </div>
           )}

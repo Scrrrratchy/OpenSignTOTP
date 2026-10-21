@@ -7,13 +7,11 @@ WORKDIR /usr/src/app
 # Copy package.json and package-lock.json first to leverage Docker cache
 COPY apps/OpenSign/package*.json ./
 
-# Install application dependencies. The committed npm lockfile was generated on
-# Windows and omits Linux native bindings, so install them explicitly for the
-# linux/amd64 image build.
+# Install the Linux bindings omitted by the Windows-generated lockfile.
 RUN npm install && npm install --no-save \
     @napi-rs/canvas-linux-x64-gnu@0.1.100 \
-    @rolldown/binding-linux-x64-gnu@1.0.3 \
-    lightningcss-linux-x64-gnu@1.32.0
+    @rolldown/binding-linux-x64-gnu@1.2.14 \
+    lightningcss-linux-x64-gnu@1.33.0
 
 # Copy the current directory contents into the container
 COPY apps/OpenSign/ .
@@ -21,13 +19,13 @@ COPY apps/OpenSign/.husky .
 COPY apps/OpenSign/entrypoint.sh .
 
 # make the entrypoint.sh file executable
-RUN chmod +x entrypoint.sh
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
 
 # Define environment variables if needed
 ENV NODE_ENV=production
 ENV GENERATE_SOURCEMAP=false
 # build
-RUN npm run build
+RUN NODE_OPTIONS="--max-old-space-size=8192" npx vite build
 
 # Inject env.js loader into index.html
 RUN sed -i '/<head>/a\<script src="/env.js"></script>' build/index.html

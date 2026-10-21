@@ -39,9 +39,10 @@ const isSignExist = (placeholders = []) => {
     Array.isArray(placeholders) &&
     placeholders?.length > 0 &&
     placeholders.every((p) => {
-      return p?.placeHolder?.some((h) =>
+      const hasRegularSignature = p?.placeHolder?.some((h) =>
         h?.pos?.some((x) => x?.type === "signature")
       );
+      return hasRegularSignature;
     });
   return isSignature;
 };
@@ -52,8 +53,7 @@ const TemplatesReport = (props) => {
   const dispatch = useDispatch();
   const titleElement = useElSize(titleRef);
   const { prefillImg, isBulkLoader } = useSelector((state) => state.widget);
-  const appName =
-    "OpenSign™";
+  const appName = "OpenSign™";
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -199,14 +199,14 @@ const TemplatesReport = (props) => {
         const teamtRes = await Parse.Cloud.run("getteams", { active: true });
         if (teamtRes.length > 0) {
           const _teamRes = JSON.parse(JSON.stringify(teamtRes));
-            const selected = _teamRes.map(
-              (x) =>
-                x.Name === "All Users" && {
-                  label: x.Name,
-                  value: x.objectId
-                }
-            );
-            setSelectedTeam(selected);
+          const selected = _teamRes.map(
+            (x) =>
+              x.Name === "All Users" && {
+                label: x.Name,
+                value: x.objectId
+              }
+          );
+          setSelectedTeam(selected);
         }
       }
     } catch (err) {
@@ -251,7 +251,7 @@ const TemplatesReport = (props) => {
   // `handleURL` is used to open microapp
   const handleURL = async (item, act) => {
     if (act.hoverLabel === "Edit") {
-        navigate(`/${act.redirectUrl}/${item.objectId}`);
+      navigate(`/${act.redirectUrl}/${item.objectId}`);
     } else {
       // handle Use template
       const placeholder = item?.Placeholders || [];
@@ -322,7 +322,7 @@ const TemplatesReport = (props) => {
         [templateRes || templateDetails],
         placeholder || xyPosition,
         signer || signerList,
-        templateRes?.URL || templateDetails?.URL,
+        templateRes?.URL || templateDetails?.URL
       );
       if (res.status === "success") {
         navigate(`/placeHolderSign/${res.id}`, {
@@ -358,8 +358,7 @@ const TemplatesReport = (props) => {
         setSelectedTeam(formatedList);
       }
       setIsShareWith({ [item.objectId]: true });
-    }
-    else if (act.action === "duplicate") {
+    } else if (act.action === "duplicate") {
       const hasDuplicate = utils.hasDuplicateWidgetNames(item?.Placeholders);
       if (hasDuplicate) {
         setError(t("duplicate-template-widget-error"));
@@ -426,8 +425,7 @@ const TemplatesReport = (props) => {
       setActLoader({});
     }
   });
-  const handleClose = (
-  ) => {
+  const handleClose = () => {
     setIsDeleteModal({});
   };
   const handleShare = (item) => {
@@ -569,7 +567,7 @@ const TemplatesReport = (props) => {
       : btoa(`${doc.objectId}/${userDetails.Email}`);
     const expireDate = doc.ExpiryDate.iso;
     const newDate = new Date(expireDate);
-    const localExpireDate = newDate.toLocaleDateString("en-US", {
+    const localExpireDate = newDate.toLocaleDateString("de-DE", {
       day: "numeric",
       month: "long",
       year: "numeric"
@@ -578,9 +576,7 @@ const TemplatesReport = (props) => {
     const variables = {
       document_title: doc.Name,
       note: doc?.Note || "",
-      sender_name:
-        doc?.SenderName ||
-        doc.ExtUserPtr.Name,
+      sender_name: doc?.SenderName || doc.ExtUserPtr.Name,
       sender_mail: doc?.SenderMail || doc.ExtUserPtr.Email,
       sender_phone: doc.ExtUserPtr?.Phone || "",
       receiver_name: userDetails?.Name || "",
@@ -600,7 +596,7 @@ const TemplatesReport = (props) => {
       : btoa(`${doc.objectId}/${userDetails.Email}`);
     const expireDate = doc.ExpiryDate.iso;
     const newDate = new Date(expireDate);
-    const localExpireDate = newDate.toLocaleDateString("en-US", {
+    const localExpireDate = newDate.toLocaleDateString("de-DE", {
       day: "numeric",
       month: "long",
       year: "numeric"
@@ -609,9 +605,7 @@ const TemplatesReport = (props) => {
     const variables = {
       document_title: doc.Name,
       note: doc?.Note || "",
-      sender_name:
-        doc?.SenderName ||
-        doc.ExtUserPtr.Name,
+      sender_name: doc?.SenderName || doc.ExtUserPtr.Name,
       sender_mail: doc?.SenderMail || doc.ExtUserPtr.Email,
       sender_phone: doc.ExtUserPtr?.Phone || "",
       receiver_name: userDetails?.Name || "",
@@ -647,7 +641,7 @@ const TemplatesReport = (props) => {
         );
     const expireDate = doc.ExpiryDate.iso;
     const newDate = new Date(expireDate);
-    const localExpireDate = newDate.toLocaleDateString("en-US", {
+    const localExpireDate = newDate.toLocaleDateString("de-DE", {
       day: "numeric",
       month: "long",
       year: "numeric"
@@ -656,9 +650,7 @@ const TemplatesReport = (props) => {
     const variables = {
       document_title: doc.Name,
       note: doc?.Note || "",
-      sender_name:
-        doc?.SenderName ||
-        doc.ExtUserPtr.Name,
+      sender_name: doc?.SenderName || doc.ExtUserPtr.Name,
       sender_mail: doc?.SenderMail || doc.ExtUserPtr.Email,
       sender_phone: doc.ExtUserPtr?.Phone || "",
       receiver_name: user?.signerPtr?.Name || "",
@@ -671,11 +663,11 @@ const TemplatesReport = (props) => {
     const subject =
       doc?.RequestSubject ||
       doc?.ExtUserPtr?.TenantId?.RequestSubject ||
-      `{{sender_name}} has requested you to sign "{{document_title}}"`;
+      `{{sender_name}} bittet Sie um die Unterzeichnung von "{{document_title}}"`;
     const body =
       doc?.RequestBody ||
       doc?.ExtUserPtr?.TenantId?.RequestBody ||
-      `<html><head><meta http-equiv='Content-Type' content='text/html; charset=UTF-8' /></head><body><p>Hi {{receiver_name}},</p><br><p>We hope this email finds you well. {{sender_name}} has requested you to review and sign <b>"{{document_title}}"</b>.</p><p>Your signature is crucial to proceed with the next steps as it signifies your agreement and authorization.</p><br><p><a href='{{signing_url}}' rel='noopener noreferrer' target='_blank'>Sign here</a></p><br><br><p>If you have any questions or need further clarification regarding the document or the signing process,  please contact the sender.</p><br><p>Thanks</p><p> Team ${appName}</p><br></body> </html>`;
+      `<html lang='de'><head><meta http-equiv='Content-Type' content='text/html; charset=UTF-8' /></head><body><p>Guten Tag {{receiver_name}},</p><br><p>{{sender_name}} bittet Sie, folgendes Dokument zu prüfen und zu unterzeichnen: <b>"{{document_title}}"</b>.</p><p>Bitte prüfen Sie das Dokument sorgfältig und unterzeichnen Sie es über den folgenden Link.</p><br><p><a href='{{signing_url}}' rel='noopener noreferrer' target='_blank'>Jetzt unterzeichnen</a></p><br><br><p>Bei Fragen zum Dokument oder zum Unterzeichnungsprozess wenden Sie sich bitte an den Absender.</p><br><p>Vielen Dank</p><p> Team ${appName}</p><br></body> </html>`;
     const res = replaceMailVaribles(subject, body, variables);
     setEmailEditorType(
       doc?.EmailEditorType?.request ||
@@ -700,15 +692,11 @@ const TemplatesReport = (props) => {
       sessionToken: localStorage.getItem("accesstoken")
     };
     let params = {
-      replyto:
-        doc?.ExtUserPtr?.Email ||
-        "",
+      replyto: doc?.ExtUserPtr?.Email || "",
       extUserId: doc?.ExtUserPtr?.objectId,
       recipient: userDetails?.Email,
       subject: mail.subject,
-      from:
-        doc?.SenderName ||
-        doc?.ExtUserPtr?.Email,
+      from: doc?.SenderName || doc?.ExtUserPtr?.Email,
       html: emailEditorType === "basic" ? mail.body.basic : mail.body.advanced
     };
     try {
@@ -716,8 +704,7 @@ const TemplatesReport = (props) => {
       if (res?.data?.result?.status === "success") {
         showAlert("success", t("mail-sent-alert"));
         setIsResendMail({});
-      }
-      else {
+      } else {
         showAlert("danger", t("something-went-wrong-mssg"));
       }
     } catch (err) {
@@ -787,7 +774,6 @@ const TemplatesReport = (props) => {
       showAlert("danger", t("something-went-wrong-mssg"));
     }
   };
-
 
   // `handleShareWith` is used to save teams in sharedWith field
   const handleShareWith = utils.withSessionValidation(async (e, template) => {
@@ -924,7 +910,7 @@ const TemplatesReport = (props) => {
       templateDetails?.URL,
       [templateDetails],
       prefillImg,
-      extClass?.[0]?.UserId?.objectId,
+      extClass?.[0]?.UserId?.objectId
     );
     if (res?.status === "unfilled") {
       const emptyWidget = res?.emptyResponseObjects
@@ -976,13 +962,10 @@ const TemplatesReport = (props) => {
             const subject = tenantDetails?.RequestSubject ?? "";
             const body = tenantDetails?.RequestBody ?? "";
             //customize mail state is handle to when user want to customize already set tenant email format then use that format
-            const userSubject =
-                  subject;
-            const userBody =
-                  body;
+            const userSubject = subject;
+            const userBody = body;
             const finalBody = userBody || defaultMailBody;
-            const emailEditorType =
-                  tenantDetails?.EmailEditorType?.request;
+            const emailEditorType = tenantDetails?.EmailEditorType?.request;
             setEmailEditorType(emailEditorType || "basic");
             setCustomizeMail({
               subject: userSubject || defaultMailSubject,
@@ -997,7 +980,7 @@ const TemplatesReport = (props) => {
         alert(t("user-not-exist"));
       }
     } else if (res?.status === "error") {
-      const message = res?.message || "something-went-wrong-mssg";
+      const message = res?.message || res?.id || "something-went-wrong-mssg";
       showAlert("danger", t(message));
     }
     setIsSubmit(false);
@@ -1232,15 +1215,13 @@ const TemplatesReport = (props) => {
                                   <i className={act.btnIcon}></i>
                                   {act.btnLabel && (
                                     <span className="uppercase font-medium">
-                                      {
-                                            `${t(`btnLabel.${act.btnLabel}`)}`
-                                      }
+                                      {`${t(`btnLabel.${act.btnLabel}`)}`}
                                     </span>
                                   )}
                                   {/* template report */}
                                   {isOption[item.objectId] &&
                                     act.action === "option" && (
-                                      <ul className="absolute -right-1 top-auto z-[70] w-52 op-dropdown-content op-menu op-menu-sm shadow-black/20 shadow bg-base-100 text-base-content rounded-box">
+                                      <ul className="absolute -right-1 top-full z-[600] w-52 op-dropdown-content op-menu op-menu-sm shadow-black/20 shadow bg-base-100 text-base-content rounded-box">
                                         {act.subaction?.map((subact) => (
                                           <li
                                             key={subact.btnId}
@@ -1340,26 +1321,26 @@ const TemplatesReport = (props) => {
                       {isShareWith[item.objectId] && (
                         <div className="op-modal op-modal-open">
                           <div className="max-h-90 bg-base-100 w-[95%] md:max-w-[500px] rounded-box relative">
-                                  <h3 className="text-base-content font-bold text-lg pt-[15px] px-[20px]">
-                                    {t("share-with")}
-                                  </h3>
-                                  <div
-                                    className="op-btn op-btn-sm op-btn-circle op-btn-ghost text-base-content absolute right-2 top-2 z-40"
-                                    onClick={() => setIsShareWith({})}
-                                  >
-                                    ✕
-                                  </div>
-                                  <div className="px-2 mt-3 w-full h-full">
-                                    <div className="op-input op-input-bordered op-input-sm w-full h-full text-[13px] break-all">
-                                      {selectedTeam?.[0]?.label}
-                                    </div>
-                                  </div>
-                                  <button
-                                    onClick={(e) => handleShareWith(e, item)}
-                                    className="op-btn op-btn-primary ml-[10px] my-3"
-                                  >
-                                    {t("submit")}
-                                  </button>
+                            <h3 className="text-base-content font-bold text-lg pt-[15px] px-[20px]">
+                              {t("share-with")}
+                            </h3>
+                            <div
+                              className="op-btn op-btn-sm op-btn-circle op-btn-ghost text-base-content absolute right-2 top-2 z-40"
+                              onClick={() => setIsShareWith({})}
+                            >
+                              ✕
+                            </div>
+                            <div className="px-2 mt-3 w-full h-full">
+                              <div className="op-input op-input-bordered op-input-sm w-full h-full text-[13px] break-all">
+                                {selectedTeam?.[0]?.label}
+                              </div>
+                            </div>
+                            <button
+                              onClick={(e) => handleShareWith(e, item)}
+                              className="op-btn op-btn-primary ml-[10px] my-3"
+                            >
+                              {t("submit")}
+                            </button>
                           </div>
                         </div>
                       )}
@@ -1395,9 +1376,7 @@ const TemplatesReport = (props) => {
                         <ModalUi
                           isOpen
                           showScrollBar
-                          title={
-                                t("quick-send")
-                          }
+                          title={t("quick-send")}
                           reduceWidth={"md:min-w-[80%]"}
                           isLoader={isBulkLoader}
                           handleClose={() => setIsBulkSend({})}
@@ -1484,118 +1463,116 @@ const TemplatesReport = (props) => {
                       {isResendMail[item.objectId] && (
                         <ModalUi
                           isOpen
-                          title={
-                                t("resend-mail")
-                          }
+                          title={t("resend-mail")}
                           handleClose={handleResendClose}
                         >
-                            <div className="overflow-y-auto max-h-[340px] md:max-h-[400px]">
-                              {item?.Placeholders?.filter(
-                                (user) => user?.Role !== "prefill"
-                              )?.map((user) => (
-                                <React.Fragment key={user.Id}>
-                                  {isNextStep[user.Id] && (
-                                    <div className="relative">
-                                      {actLoader[user.Id] && (
-                                        <div className="absolute w-full h-full flex justify-center items-center bg-black bg-opacity-30 z-[60]">
-                                          <Loader />
-                                        </div>
-                                      )}
-                                      <form
-                                        onSubmit={(e) =>
-                                          handleResendMail(e, item, user)
-                                        }
-                                        className="w-full flex flex-col gap-2 p-3 text-base-content relative"
-                                      >
-                                        <div className="absolute right-5 text-xs z-40">
-                                          <Tooltip
-                                            id={`${user.Id}_help`}
-                                            message={t("resend-mail-help")}
+                          <div className="overflow-y-auto max-h-[340px] md:max-h-[400px]">
+                            {item?.Placeholders?.filter(
+                              (user) => user?.Role !== "prefill"
+                            )?.map((user) => (
+                              <React.Fragment key={user.Id}>
+                                {isNextStep[user.Id] && (
+                                  <div className="relative">
+                                    {actLoader[user.Id] && (
+                                      <div className="absolute w-full h-full flex justify-center items-center bg-black bg-opacity-30 z-[60]">
+                                        <Loader />
+                                      </div>
+                                    )}
+                                    <form
+                                      onSubmit={(e) =>
+                                        handleResendMail(e, item, user)
+                                      }
+                                      className="w-full flex flex-col gap-2 p-3 text-base-content relative"
+                                    >
+                                      <div className="absolute right-5 text-xs z-40">
+                                        <Tooltip
+                                          id={`${user.Id}_help`}
+                                          message={t("resend-mail-help")}
+                                        />
+                                      </div>
+                                      <div className="w-full flex flex-col gap-2 text-base-content relative">
+                                        <div>
+                                          <label
+                                            className="text-xs ml-1"
+                                            htmlFor="mailsubject"
+                                          >
+                                            {t("subject")}{" "}
+                                          </label>
+                                          <input
+                                            id="mailsubject"
+                                            className="op-input op-input-bordered op-input-sm focus:outline-none hover:border-base-content w-full text-xs"
+                                            value={mail.subject}
+                                            onChange={(e) =>
+                                              handleSubjectChange(
+                                                e.target.value,
+                                                item
+                                              )
+                                            }
+                                            onInvalid={(e) =>
+                                              e.target.setCustomValidity(
+                                                t("input-required")
+                                              )
+                                            }
+                                            onInput={(e) =>
+                                              e.target.setCustomValidity("")
+                                            }
+                                            required
                                           />
                                         </div>
-                                        <div className="w-full flex flex-col gap-2 text-base-content relative">
-                                          <div>
-                                            <label
-                                              className="text-xs ml-1"
-                                              htmlFor="mailsubject"
-                                            >
-                                              {t("subject")}{" "}
-                                            </label>
-                                            <input
-                                              id="mailsubject"
-                                              className="op-input op-input-bordered op-input-sm focus:outline-none hover:border-base-content w-full text-xs"
-                                              value={mail.subject}
-                                              onChange={(e) =>
-                                                handleSubjectChange(
-                                                  e.target.value,
-                                                  item
-                                                )
-                                              }
-                                              onInvalid={(e) =>
-                                                e.target.setCustomValidity(
-                                                  t("input-required")
-                                                )
-                                              }
-                                              onInput={(e) =>
-                                                e.target.setCustomValidity("")
-                                              }
-                                              required
-                                            />
-                                          </div>
-                                          <div>
-                                            <label
-                                              className="flex justify-between text-sm ml-1"
-                                              htmlFor="mailbody"
-                                            >
-                                              <span>{t("body")} </span>
-                                              <button
-                                                className="op-link op-link-primary"
-                                                onClick={(e) => handleSwitch(e)}
-                                              >
-                                                {emailEditorType === "basic"
-                                                  ? t("switch-to-advanced")
-                                                  : t("switch-to-basic")}
-                                              </button>
-                                            </label>
-                                            <EmailEditor
-                                              type={emailEditorType}
-                                              values={mail.body || ""}
-                                              onChange={(value, type) =>
-                                                handlebodyChange(
-                                                  value,
-                                                  item,
-                                                  type
-                                                )
-                                              }
-                                              smallscreen
-                                            />
-                                          </div>
-                                        </div>
-                                          <button
-                                            type="submit"
-                                            className="op-btn op-btn-primary"
+                                        <div>
+                                          <label
+                                            className="flex justify-between text-sm ml-1"
+                                            htmlFor="mailbody"
                                           >
-                                            {t("resend")}
-                                          </button>
-                                      </form>
-                                    </div>
-                                  )}
-                                  {Object?.keys(isNextStep) <= 0 && (
-                                    <div className="flex justify-between items-center gap-2 my-2 px-3">
-                                      <div className="text-base-content">
-                                        {user?.signerPtr?.Name || "-"}{" "}
-                                        {`<${
-                                          user?.email
-                                            ? user.email
-                                            : user.signerPtr.Email
-                                        }>`}
+                                            <span>{t("body")} </span>
+                                            <button
+                                              className="op-link op-link-primary"
+                                              onClick={(e) => handleSwitch(e)}
+                                            >
+                                              {emailEditorType === "basic"
+                                                ? t("switch-to-advanced")
+                                                : t("switch-to-basic")}
+                                            </button>
+                                          </label>
+                                          <EmailEditor
+                                            type={emailEditorType}
+                                            values={mail.body || ""}
+                                            onChange={(value, type) =>
+                                              handlebodyChange(
+                                                value,
+                                                item,
+                                                type
+                                              )
+                                            }
+                                            smallscreen
+                                          />
+                                        </div>
                                       </div>
-                                      <>{fetchUserStatus(user, item)}</>
+                                      <button
+                                        type="submit"
+                                        className="op-btn op-btn-primary"
+                                      >
+                                        {t("resend")}
+                                      </button>
+                                    </form>
+                                  </div>
+                                )}
+                                {Object?.keys(isNextStep) <= 0 && (
+                                  <div className="flex justify-between items-center gap-2 my-2 px-3">
+                                    <div className="text-base-content">
+                                      {user?.signerPtr?.Name || "-"}{" "}
+                                      {`<${
+                                        user?.email
+                                          ? user.email
+                                          : user.signerPtr.Email
+                                      }>`}
                                     </div>
-                                  )}
-                                </React.Fragment>
-                              ))}
-                            </div>
+                                    <>{fetchUserStatus(user, item)}</>
+                                  </div>
+                                )}
+                              </React.Fragment>
+                            ))}
+                          </div>
                         </ModalUi>
                       )}
                       <ModalUi

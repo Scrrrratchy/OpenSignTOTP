@@ -7,9 +7,7 @@ import ModalUi from "../primitives/ModalUi";
 import pad from "../assets/images/pad.svg";
 import Tooltip from "../primitives/Tooltip";
 import AddUser from "../components/AddUser";
-import {
-  useTranslation
-} from "react-i18next";
+import { useTranslation } from "react-i18next";
 import DeleteUserModal from "../primitives/DeleteUserModal";
 import axios from "axios";
 import PasswordResetModal from "../primitives/PasswordResetModal";
@@ -34,7 +32,6 @@ const UserList = () => {
   const [isActiveModal, setIsActiveModal] = useState({});
   const [isActLoader, setIsActLoader] = useState({});
   const [isAdmin, setIsAdmin] = useState(false);
-  const [mfaStatus, setMfaStatus] = useState({});
   const [formHeader, setFormHeader] = useState(t("add-user"));
   const [deleteUserRes, setDeleteUserRes] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -109,10 +106,9 @@ const UserList = () => {
       const extUser =
         localStorage.getItem("Extand_Class") &&
         JSON.parse(localStorage.getItem("Extand_Class"))?.[0];
-      let admin = false;
 
       if (extUser) {
-        admin =
+        const admin =
           extUser?.UserRole &&
           (extUser?.UserRole === "contracts_Admin" ||
             extUser?.UserRole === "contracts_OrgAdmin")
@@ -125,10 +121,6 @@ const UserList = () => {
       });
       const _userRes = JSON.parse(JSON.stringify(res));
       setUserList(_userRes);
-      const userIds = _userRes.map((user) => user?.UserId?.objectId).filter(Boolean);
-      if (admin && userIds.length) {
-        setMfaStatus(await Parse.Cloud.run("getMfaAdminStatus", { userIds }));
-      }
     } catch (err) {
       console.log("Err in fetch userlist", err);
       showAlert("danger", t("something-went-wrong-mssg"));
@@ -185,15 +177,18 @@ const UserList = () => {
       newArray[index] = { ...newArray[index], IsDisabled: !IsDisabled };
       setUserList(newArray);
       try {
-        const extUser = new Parse.Object("contracts_Users");
-        extUser.id = user.objectId;
-        extUser.set("IsDisabled", !IsDisabled);
-        await extUser.save();
+        await Parse.Cloud.run("adminSave", {
+          kind: "user",
+          id: user.objectId,
+          role: user.UserRole,
+          disabled: !IsDisabled
+        });
         showAlert(
           !IsDisabled === true ? "danger" : "success",
           !IsDisabled === true ? t("user-deactivated") : t("user-activated")
         );
       } catch (err) {
+        setUserList(userList);
         showAlert("danger", t("something-went-wrong-mssg"));
         console.log("err in disable team", err);
       } finally {
@@ -245,7 +240,7 @@ const UserList = () => {
   };
 
   const handleActionBtn = withSessionValidation(async (act, item) => {
-      setIsActModal({ [`${act.action}_${item.objectId}`]: true });
+    setIsActModal({ [`${act.action}_${item.objectId}`]: true });
   });
   const handleBtnVisibility = (act, item) => {
     if (act.restrictAdmin) {
@@ -285,21 +280,6 @@ const UserList = () => {
       setIsLoader(false);
     }
   });
-  const resetMfa = withSessionValidation(async (item) => {
-    const userId = item?.UserId?.objectId;
-    if (!userId || !mfaStatus[userId]) return;
-    if (!window.confirm(t("delete-two-factor-authentication"))) return;
-    setIsActLoader({ [item.objectId]: true });
-    try {
-      await Parse.Cloud.run("adminResetMfa", { userId });
-      setMfaStatus((current) => ({ ...current, [userId]: false }));
-      showAlert("success", t("2fa-reset-successfully"));
-    } catch (err) {
-      showAlert("danger", err.message);
-    } finally {
-      setIsActLoader({});
-    }
-  });
   return (
     <div className="relative">
       {isLoader && (
@@ -313,279 +293,250 @@ const UserList = () => {
         </div>
       )}
 
-      {
-          !isLoader && (
-            <>
-              {isAdmin ? (
-                <div className="p-2 w-full bg-base-100 text-base-content op-card shadow-lg">
-                  {isAlert.msg && (
-                    <Alert type={isAlert.type}>{isAlert.msg}</Alert>
-                  )}
-                  <div className="flex flex-row items-center justify-between my-2 mx-3 text-[20px] md:text-[23px]">
-                    <div className="font-light">
-                      {t("report-name.Users")}{" "}
-                      <span className="text-xs md:text-[13px] font-normal">
-                        <Tooltip message={t("users-from-teams")} />
-                      </span>
-                    </div>
-                    <div className="flex flex-row gap-2 items-center">
-                      <div
-                        className="cursor-pointer"
-                        onClick={() => handleModal("form")}
-                      >
-                        <i className="fa-light fa-square-plus text-accent text-[30px] md:text-[40px]"></i>
-                      </div>
-                    </div>
+      {!isLoader && (
+        <>
+          {isAdmin ? (
+            <div className="p-2 w-full bg-base-100 text-base-content op-card shadow-lg">
+              {isAlert.msg && <Alert type={isAlert.type}>{isAlert.msg}</Alert>}
+              <div className="flex flex-row items-center justify-between my-2 mx-3 text-[20px] md:text-[23px]">
+                <div className="font-light">
+                  {t("report-name.Users")}{" "}
+                  <span className="text-xs md:text-[13px] font-normal">
+                    <Tooltip message={t("users-from-teams")} />
+                  </span>
+                </div>
+                <div className="flex flex-row gap-2 items-center">
+                  <div
+                    className="cursor-pointer"
+                    onClick={() => handleModal("form")}
+                  >
+                    <i className="fa-light fa-square-plus text-accent text-[30px] md:text-[40px]"></i>
                   </div>
-                  <div className="w-full overflow-x-auto">
-                    <table className="op-table border-collapse w-full mb-[50px]">
-                      <thead className="text-[14px]">
-                        <tr className="border-y-[1px]">
-                          {heading?.map((item, index) => (
-                            <th key={index} className="px-4 py-2">
-                              {t(`report-heading.${item}`)}
-                            </th>
-                          ))}
-                          {usersActions?.length > 0 && (
-                            <th className="p-2 text-transparent pointer-events-none">
-                              {t("action")}
+                </div>
+              </div>
+              <div className="w-full overflow-x-auto">
+                <table className="op-table border-collapse w-full mb-[50px]">
+                  <thead className="text-[14px]">
+                    <tr className="border-y-[1px]">
+                      {heading?.map((item, index) => (
+                        <th key={index} className="px-4 py-2">
+                          {t(`report-heading.${item}`)}
+                        </th>
+                      ))}
+                      {usersActions?.length > 0 && (
+                        <th className="p-2 text-transparent pointer-events-none">
+                          {t("action")}
+                        </th>
+                      )}
+                    </tr>
+                  </thead>
+                  {userList?.length > 0 && (
+                    <tbody className="text-[12px]">
+                      {currentList.map((item, index) => (
+                        <tr className="border-y-[1px]" key={index}>
+                          {heading.includes("Sr.No") && (
+                            <th className="px-4 py-2">
+                              {startIndex + index + 1}
                             </th>
                           )}
-                        </tr>
-                      </thead>
-                      {userList?.length > 0 && (
-                        <tbody className="text-[12px]">
-                          {currentList.map((item, index) => (
-                            <tr className="border-y-[1px]" key={index}>
-                              {heading.includes("Sr.No") && (
-                                <th className="px-4 py-2">
-                                  {startIndex + index + 1}
-                                </th>
-                              )}
-                              <td className="px-4 py-2 font-semibold">
-                                {item?.Name}{" "}
-                              </td>
-                              <td className="px-4 py-2 ">
-                                {item?.Email || "-"}
-                              </td>
-                              <td className="px-4 py-2">
-                                {item?.Phone || "-"}
-                              </td>
-                              <td className="px-4 py-2">
-                                {item?.UserRole?.split("_").pop() || "-"}
-                              </td>
-                              <td className="px-4 py-2">
-                                {formatRow(item.TeamIds)}
-                              </td>
-                              {handleActiveToggleVisibility(item) ? (
-                                <td className="px-4 py-2 font-semibold">
-                                  <label
-                                    htmlFor={`isdisabled-${item.objectId}`}
-                                    className="cursor-pointer relative block items-center mb-0"
-                                  >
-                                    <input
-                                      id={`isdisabled-${item.objectId}`}
-                                      type="checkbox"
-                                      className="op-toggle checked:[--tglbg:#3368ff] transition-all checked:text-white"
-                                      checked={item?.IsDisabled !== true}
-                                      onChange={() => handleToggleBtn(item)}
-                                    />
-                                  </label>
-                                  {isActiveModal[item.objectId] && (
-                                    <ModalUi
-                                      isOpen
-                                      title={t("user-status")}
-                                      handleClose={handleClose}
-                                    >
-                                      <div className="m-[20px]">
-                                        <div className="text-lg font-normal text-base-content">
-                                          {t("are-you-sure")}{" "}
-                                          {item?.IsDisabled
-                                            ? t("activate")
-                                            : t("deactivate")}{" "}
-                                          {t("this-user")}?
-                                        </div>
-                                        <hr className="bg-[#ccc] mt-4 " />
-                                        <div className="flex items-center mt-3 gap-2 text-white">
-                                          <button
-                                            onClick={() =>
-                                              handleToggleSubmit(item)
-                                            }
-                                            className="op-btn op-btn-primary"
-                                          >
-                                            {t("yes")}
-                                          </button>
-                                          <button
-                                            onClick={handleClose}
-                                            className="op-btn op-btn-secondary"
-                                          >
-                                            {t("no")}
-                                          </button>
-                                        </div>
-                                      </div>
-                                    </ModalUi>
-                                  )}
-                                </td>
-                              ) : (
-                                <td className="px-4 py-2 font-semibold"></td>
-                              )}
-
-                              {isAdmin && (
-                                <td className="px-3 py-2">
-                                  <div className="text-base-content min-w-max flex flex-row gap-x-2 gap-y-1 justify-start items-center">
-                                    {usersActions?.length > 0 &&
-                                      usersActions?.map((act, index) => (
-                                        <React.Fragment key={index}>
-                                          {handleBtnVisibility(act, item) && (
-                                            <div
-                                              role="button"
-                                              data-tut={act?.selector}
-                                              onClick={() =>
-                                                handleActionBtn(act, item)
-                                              }
-                                              title={t(
-                                                `btnLabel.${act.hoverLabel}`
-                                              )}
-                                              className={
-                                                act.action !== "option"
-                                                  ? `${act?.btnColor || ""} op-btn op-btn-sm mr-1 `
-                                                  : "text-base-content focus:outline-none text-lg mr-2 relative"
-                                              }
-                                            >
-                                              <i className={act.btnIcon}></i>
-                                              {act.btnLabel && (
-                                                <span className="uppercase font-medium">
-                                                  {t(
-                                                    `btnLabel.${act.btnLabel}`
-                                                  )}
-                                                </span>
-                                              )}
-                                            </div>
-                                          )}
-                                        </React.Fragment>
-                                      ))}
-                                    <button
-                                      type="button"
-                                      className={`op-btn op-btn-sm mr-1 ${
-                                        mfaStatus[item?.UserId?.objectId]
-                                          ? "op-btn-primary"
-                                          : "op-btn-ghost"
-                                      }`}
-                                      title={
-                                        mfaStatus[item?.UserId?.objectId]
-                                          ? t("delete-two-factor-authentication")
-                                          : t("two-factor-authentication")
-                                      }
-                                      disabled={!mfaStatus[item?.UserId?.objectId]}
-                                      onClick={() => resetMfa(item)}
-                                    >
-                                      <i className="fa-light fa-shield-check"></i>
-                                    </button>
+                          <td className="px-4 py-2 font-semibold">
+                            {item?.Name}{" "}
+                          </td>
+                          <td className="px-4 py-2 ">{item?.Email || "-"}</td>
+                          <td className="px-4 py-2">{item?.Phone || "-"}</td>
+                          <td className="px-4 py-2">
+                            {item?.UserRole?.split("_").pop() || "-"}
+                          </td>
+                          <td className="px-4 py-2">
+                            {formatRow(item.TeamIds)}
+                          </td>
+                          {handleActiveToggleVisibility(item) ? (
+                            <td className="px-4 py-2 font-semibold">
+                              <label
+                                htmlFor={`isdisabled-${item.objectId}`}
+                                className="cursor-pointer relative block items-center mb-0"
+                              >
+                                <input
+                                  id={`isdisabled-${item.objectId}`}
+                                  type="checkbox"
+                                  className="op-toggle checked:[--tglbg:#3368ff] transition-all checked:text-white"
+                                  checked={item?.IsDisabled !== true}
+                                  onChange={() => handleToggleBtn(item)}
+                                />
+                              </label>
+                              {isActiveModal[item.objectId] && (
+                                <ModalUi
+                                  isOpen
+                                  title={t("user-status")}
+                                  handleClose={handleClose}
+                                >
+                                  <div className="m-[20px]">
+                                    <div className="text-lg font-normal text-base-content">
+                                      {t("are-you-sure")}{" "}
+                                      {item?.IsDisabled
+                                        ? t("activate")
+                                        : t("deactivate")}{" "}
+                                      {t("this-user")}?
+                                    </div>
+                                    <hr className="bg-[#ccc] mt-4 " />
+                                    <div className="flex items-center mt-3 gap-2 text-white">
+                                      <button
+                                        onClick={() => handleToggleSubmit(item)}
+                                        className="op-btn op-btn-primary"
+                                      >
+                                        {t("yes")}
+                                      </button>
+                                      <button
+                                        onClick={handleClose}
+                                        className="op-btn op-btn-secondary"
+                                      >
+                                        {t("no")}
+                                      </button>
+                                    </div>
                                   </div>
-                                </td>
+                                </ModalUi>
                               )}
-                              <DeleteUserModal
-                                title={t("delete-account")}
-                                deleting={deleting}
-                                userEmail={item?.Email}
-                                isOpen={isActModal["delete_" + item.objectId]}
-                                onConfirm={() => handleDeleteAccount(item)}
-                                deleteRes={deleteUserRes}
-                                handleClose={handleCloseModal}
-                              />
-                              <PasswordResetModal
-                                isOpen={
-                                  isActModal["resetpassword_" + item.objectId]
-                                }
-                                userId={item?.UserId?.objectId}
-                                onClose={handleCloseModal}
-                                onSubmit={submitPassword}
-                                showAlert={showAlert}
-                              />
-                            </tr>
-                          ))}
-                        </tbody>
-                      )}
-                    </table>
-                  </div>
-                  <div className="flex flex-row justify-between items-center text-xs font-medium">
-                    <div className="op-join flex flex-wrap items-center p-2">
-                      {userList.length > recordperPage && (
-                        <button
-                          onClick={() => paginateBack()}
-                          className="op-join-item op-btn op-btn-sm"
-                        >
-                          {t("prev")}
-                        </button>
-                      )}
-                      {pageNumbers.map((x, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setCurrentPage(x)}
-                          disabled={x === "..."}
-                          className={`${
-                            x === currentPage ? "op-btn-active" : ""
-                          } op-join-item op-btn op-btn-sm`}
-                        >
-                          {x}
-                        </button>
+                            </td>
+                          ) : (
+                            <td className="px-4 py-2 font-semibold"></td>
+                          )}
+
+                          {isAdmin && (
+                            <td className="px-3 py-2">
+                              <div className="text-base-content min-w-max flex flex-row gap-x-2 gap-y-1 justify-start items-center">
+                                {usersActions?.length > 0 &&
+                                  usersActions?.map((act, index) => (
+                                    <React.Fragment key={index}>
+                                      {handleBtnVisibility(act, item) && (
+                                        <div
+                                          role="button"
+                                          data-tut={act?.selector}
+                                          onClick={() =>
+                                            handleActionBtn(act, item)
+                                          }
+                                          title={t(
+                                            `btnLabel.${act.hoverLabel}`
+                                          )}
+                                          className={
+                                            act.action !== "option"
+                                              ? `${act?.btnColor || ""} op-btn op-btn-sm mr-1 `
+                                              : "text-base-content focus:outline-none text-lg mr-2 relative"
+                                          }
+                                        >
+                                          <i className={act.btnIcon}></i>
+                                          {act.btnLabel && (
+                                            <span className="uppercase font-medium">
+                                              {t(`btnLabel.${act.btnLabel}`)}
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
+                                    </React.Fragment>
+                                  ))}
+                              </div>
+                            </td>
+                          )}
+                          <DeleteUserModal
+                            title={t("delete-account")}
+                            deleting={deleting}
+                            userEmail={item?.Email}
+                            isOpen={isActModal["delete_" + item.objectId]}
+                            onConfirm={() => handleDeleteAccount(item)}
+                            deleteRes={deleteUserRes}
+                            handleClose={handleCloseModal}
+                          />
+                          <PasswordResetModal
+                            isOpen={
+                              isActModal["resetpassword_" + item.objectId]
+                            }
+                            userId={item?.UserId?.objectId}
+                            onClose={handleCloseModal}
+                            onSubmit={submitPassword}
+                            showAlert={showAlert}
+                          />
+                        </tr>
                       ))}
-                      {userList.length > recordperPage && (
-                        <button
-                          onClick={() => paginateFront()}
-                          className="op-join-item op-btn op-btn-sm"
-                        >
-                          {t("next")}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {userList?.length <= 0 && (
-                    <div
-                      className={`${
-                        isDashboard ? "h-[317px]" : ""
-                      } flex flex-col items-center justify-center w-ful bg-base-100 text-base-content rounded-xl py-4`}
-                    >
-                      <div className="w-[60px] h-[60px] overflow-hidden">
-                        <img
-                          className="w-full h-full object-contain"
-                          src={pad}
-                          alt="img"
-                        />
-                      </div>
-                      <div className="text-sm font-semibold">
-                        {t("no-data-available")}
-                      </div>
-                    </div>
+                    </tbody>
                   )}
-                  <ModalUi
-                    isOpen={isModal.form}
-                    title={formHeader}
-                    handleClose={() => handleModal("form")}
-                  >
-                    <AddUser
-                      showAlert={showAlert}
-                      handleUserData={handleUserData}
-                      closePopup={() => handleModal("form")}
-                      setFormHeader={setFormHeader}
-                    />
-                  </ModalUi>
+                </table>
+              </div>
+              <div className="flex flex-row justify-between items-center text-xs font-medium">
+                <div className="op-join flex flex-wrap items-center p-2">
+                  {userList.length > recordperPage && (
+                    <button
+                      onClick={() => paginateBack()}
+                      className="op-join-item op-btn op-btn-sm"
+                    >
+                      {t("prev")}
+                    </button>
+                  )}
+                  {pageNumbers.map((x, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPage(x)}
+                      disabled={x === "..."}
+                      className={`${
+                        x === currentPage ? "op-btn-active" : ""
+                      } op-join-item op-btn op-btn-sm`}
+                    >
+                      {x}
+                    </button>
+                  ))}
+                  {userList.length > recordperPage && (
+                    <button
+                      onClick={() => paginateFront()}
+                      className="op-join-item op-btn op-btn-sm"
+                    >
+                      {t("next")}
+                    </button>
+                  )}
                 </div>
-              ) : (
-                <div className="flex items-center justify-center h-screen w-full bg-base-100 text-base-content rounded-box">
-                  <div className="text-center">
-                    <h1 className="text-[60px] lg:text-[120px] font-semibold">
-                      404
-                    </h1>
-                    <p className="text-[30px] lg:text-[50px]">
-                      {t("page-not-found")}
-                    </p>
+              </div>
+              {userList?.length <= 0 && (
+                <div
+                  className={`${
+                    isDashboard ? "h-[317px]" : ""
+                  } flex flex-col items-center justify-center w-ful bg-base-100 text-base-content rounded-xl py-4`}
+                >
+                  <div className="w-[60px] h-[60px] overflow-hidden">
+                    <img
+                      className="w-full h-full object-contain"
+                      src={pad}
+                      alt="img"
+                    />
+                  </div>
+                  <div className="text-sm font-semibold">
+                    {t("no-data-available")}
                   </div>
                 </div>
               )}
-            </>
-          )
-      }
+              <ModalUi
+                isOpen={isModal.form}
+                title={formHeader}
+                handleClose={() => handleModal("form")}
+              >
+                <AddUser
+                  showAlert={showAlert}
+                  handleUserData={handleUserData}
+                  closePopup={() => handleModal("form")}
+                  setFormHeader={setFormHeader}
+                />
+              </ModalUi>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-screen w-full bg-base-100 text-base-content rounded-box">
+              <div className="text-center">
+                <h1 className="text-[60px] lg:text-[120px] font-semibold">
+                  404
+                </h1>
+                <p className="text-[30px] lg:text-[50px]">
+                  {t("page-not-found")}
+                </p>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 };

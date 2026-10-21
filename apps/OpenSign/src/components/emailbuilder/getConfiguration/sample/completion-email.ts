@@ -1,31 +1,27 @@
 import { TEditorConfiguration } from "../../documents/editor/core";
 
-const getCompletionEmail = (
-): TEditorConfiguration => {
-  const appName =
-    "OpenSign™";
+const getCompletionEmail = (): TEditorConfiguration => {
+  const appName = "OpenSign™";
 
-  const logoBlock =
-        {
-          "block-1709571212684": {
-            type: "Image",
-            data: {
-              style: {
-                padding: { top: 24, bottom: 24, right: 24, left: 24 }
-              },
-              props: {
-                width: null,
-                height: 50,
-                url: "https://qikinnovation.ams3.digitaloceanspaces.com/logo.png",
-                alt: "logo",
-                linkHref: null,
-                contentAlignment: "middle"
-              }
-            }
-          }
-        };
-  const logoBlockId =
-        ["block-1709571212684"];
+  const logoBlock = {
+    "block-1709571212684": {
+      type: "Image",
+      data: {
+        style: {
+          padding: { top: 24, bottom: 24, right: 24, left: 24 }
+        },
+        props: {
+          width: null,
+          height: 50,
+          url: "https://qikinnovation.ams3.digitaloceanspaces.com/logo.png",
+          alt: "logo",
+          linkHref: null,
+          contentAlignment: "middle"
+        }
+      }
+    }
+  };
+  const logoBlockId = ["block-1709571212684"];
 
   return {
     root: {
@@ -62,7 +58,7 @@ const getCompletionEmail = (
         },
         props: {
           markdown: false,
-          text: "Document signed successfully\n\n"
+          text: "Dokument erfolgreich unterzeichnet\n\n"
         }
       }
     },
@@ -80,7 +76,7 @@ const getCompletionEmail = (
           }
         },
         props: {
-          text: "Sender"
+          text: "Absender"
         }
       }
     },
@@ -117,7 +113,7 @@ const getCompletionEmail = (
           }
         },
         props: {
-          text: "Organization"
+          text: "Organisation"
         }
       }
     },
@@ -154,7 +150,7 @@ const getCompletionEmail = (
           }
         },
         props: {
-          text: "Expires on"
+          text: "Gültig bis"
         }
       }
     },
@@ -192,7 +188,7 @@ const getCompletionEmail = (
           }
         },
         props: {
-          text: "Note"
+          text: "Hinweis"
         }
       }
     },
@@ -230,7 +226,7 @@ const getCompletionEmail = (
           }
         },
         props: {
-          contents: `This is an automated email from ${appName}. For any queries regarding this email, please contact the sender <a href="mailto:{{sender_mail}}" target="_blank">{{sender_mail}}</a> directly.`
+          contents: `Dies ist eine automatisch versendete E-Mail von ${appName}. Bei Fragen zu dieser E-Mail wenden Sie sich bitte direkt an den Absender <a href="mailto:{{sender_mail}}" target="_blank">{{sender_mail}}</a>.`
         }
       }
     },
@@ -249,7 +245,7 @@ const getCompletionEmail = (
         },
         props: {
           contents:
-            'All parties have successfully signed the document "<b>{{document_title}}</b>". Kindly download the document from the attachment.'
+            'Alle Beteiligten haben das Dokument erfolgreich unterzeichnet: "<b>{{document_title}}</b>". Sie finden das Dokument im Anhang dieser E-Mail.'
         }
       }
     }

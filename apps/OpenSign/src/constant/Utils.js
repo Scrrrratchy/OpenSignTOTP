@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getErrorMessage, isCreditQuotaError } from "../utils/creditErrors";
 import moment from "moment";
 import {
   PDFDocument,
@@ -14,9 +15,13 @@ import { appInfo } from "./appinfo";
 import { saveAs } from "file-saver";
 import printModule from "print-js";
 import fontkit from "@pdf-lib/fontkit";
-import { SCALE_STEPS, themeColor } from "./const";
+import { SCALE_STEPS } from "./const";
 import { format, toZonedTime } from "date-fns-tz";
+
 import i18n from "../i18n";
+import { persistBrandPresentation } from "./brandPresentation";
+import { getRuntimePdfFontUrl } from "./runtimeConfig";
+import { resolveMailBrandPresentation } from "./mailBrand";
 import {
   applyNumberFormulasToPages,
   buildDownloadFilename,
@@ -117,10 +122,10 @@ const applyDuplicateResponsesToPages = (pages = []) => {
 export function getEnv() {
   return window?.RUNTIME_ENV || {};
 }
-const appName = "OpenSign™";
+const appName = resolveMailBrandPresentation("").appName;
 
-export const defaultMailBody = `<p>Hi {{receiver_name}},</p><br><p>We hope this email finds you well. {{sender_name}}&nbsp;has requested you to review and sign&nbsp;{{document_title}}.</p><p>Your signature is crucial to proceed with the next steps as it signifies your agreement and authorization.</p><br><p><a href='{{signing_url}}' rel='noopener noreferrer' target='_blank'>Sign here</a></p><br><br><p>If you have any questions or need further clarification regarding the document or the signing process,  please contact the sender.</p><br><p>Thanks</p><p> Team ${appName}</p><br>`;
-export const defaultMailSubject = `{{sender_name}} has requested you to sign {{document_title}}`;
+export const defaultMailBody = `<p>Guten Tag {{receiver_name}},</p><br><p>{{sender_name}}&nbsp;bittet Sie, folgendes Dokument zu prüfen und zu unterzeichnen:&nbsp;{{document_title}}.</p><p>Bitte prüfen Sie das Dokument sorgfältig und unterzeichnen Sie es über den folgenden Link.</p><br><p><a href='{{signing_url}}' rel='noopener noreferrer' target='_blank'>Jetzt unterzeichnen</a></p><br><br><p>Bei Fragen zum Dokument oder zum Unterzeichnungsprozess wenden Sie sich bitte an den Absender.</p><br><p>Vielen Dank</p><p> Team ${appName}</p><br>`;
+export const defaultMailSubject = `{{sender_name}} bittet Sie um die Unterzeichnung von {{document_title}}`;
 export const nonPresentMaskCss = (base) => ({
   ...base,
   width: "0px",
@@ -917,15 +922,20 @@ export const signPdfFun = async (
 ) => {
   let isCustomCompletionMail = false;
   try {
-    //get tenant details
-    const tenantDetails = await getTenantDetails(objectId);
-    if (tenantDetails && tenantDetails === "user does not exist!") {
-      return { status: "error", message: "User does not exist." };
-    } else {
-      if (tenantDetails?.CompletionBody && tenantDetails?.CompletionSubject) {
-        isCustomCompletionMail = true;
+    //qes: skip getTenantDetails when objectId is unavailable (QES redirect-back)
+    if (objectId) {
+      //get tenant details
+      const tenantDetails = await getTenantDetails(objectId);
+      if (tenantDetails && tenantDetails === "user does not exist!") {
+        return { status: "error", message: "User does not exist." };
+      } else {
+        if (tenantDetails?.CompletionBody && tenantDetails?.CompletionSubject) {
+          isCustomCompletionMail = true;
+        }
       }
     }
+    //qes: skip widget-based signature extraction (eID Easy already signed the PDF)
+    let suffixbase64 = ""; //qes: declare outside for QES path
     // below for loop is used to get first signature of user to send if to signpdf
     // for adding it in completion certificate
     let getSignature;
@@ -941,7 +951,6 @@ export const signPdfFun = async (
     }
 
     let base64Sign = getSignature?.SignUrl;
-    let suffixbase64 = "";
     if (base64Sign) {
       //check https type signature (default signature exist) then convert in base64
       const isUrl = base64Sign.includes("https");
@@ -964,7 +973,7 @@ export const signPdfFun = async (
       docId: documentId,
       userId: signerObjectId,
       isCustomCompletionMail: isCustomCompletionMail,
-      signature: suffixbase64,
+      signature: suffixbase64, //qes: will be empty string for QES
       activity: activity || "Signed"
     };
     const resSignPdf = await Parse.Cloud.run("signPdf", params);
@@ -1125,8 +1134,7 @@ export const createDocument = async (
         return { status: "success", id: result.objectId, data: result };
       }
     } catch (err) {
-      const message =
-        err?.response?.data?.error || err?.message || "something went wrong.";
+      const message = getErrorMessage(err) || "something went wrong.";
       console.error("error in create document:", message);
       return { status: "error", id: "something-went-wrong-mssg" };
     }
@@ -1505,9 +1513,9 @@ export const addInitialData = (signerPos, setXyPosition, value, userId) => {
 export const embedDocId = async (pdfOriginalWH, pdfDoc, documentId) => {
   const appName = "OpenSign™";
   // `fontBytes` is used to embed custom font in pdf
-  const fontBytes = await fileasbytes(
-    "https://cdn.opensignlabs.com/webfonts/times.ttf"
-  );
+  const pdfFontUrl = getRuntimePdfFontUrl();
+  if (!pdfFontUrl) throw new Error("A PDF font URL is required.");
+  const fontBytes = await fileasbytes(pdfFontUrl);
   pdfDoc.registerFontkit(fontkit);
   const font = await pdfDoc.embedFont(fontBytes, { subset: true });
   //pdfOriginalWH contained all pdf's pages width and height
@@ -2051,9 +2059,9 @@ export const embedWidgetsToDoc = async (
   prefillImg
 ) => {
   // `fontBytes` is used to embed custom font in pdf
-  const fontBytes = await fileasbytes(
-    "https://cdn.opensignlabs.com/webfonts/times.ttf"
-  );
+  const pdfFontUrl = getRuntimePdfFontUrl();
+  if (!pdfFontUrl) throw new Error("A PDF font URL is required.");
+  const fontBytes = await fileasbytes(pdfFontUrl);
   pdfDoc.registerFontkit(fontkit);
   const font = await pdfDoc.embedFont(fontBytes, { subset: true });
   let hasError = false;
@@ -2763,7 +2771,19 @@ export const handleCopyNextToWidget = (
 
   if (newY < 0) newY = 0;
 
-  const widgetName = `${position?.type}${randomId(2)}`;
+  // Get signer position data early for widget name generation
+  if (userId) {
+    filterSignerPos = xyPosition.find((data) => data.Id === userId);
+  }
+
+  // Count same-type widgets to generate a name matching drag-and-drop convention
+  const countSameWidget =
+    filterSignerPos?.placeHolder?.reduce((count, page) => {
+      return (
+        count + page.pos.filter((item) => item.type === position?.type).length
+      );
+    }, 0) || 0;
+  const widgetName = `${position?.type}-${generateId(6)}-${countSameWidget + 1}`;
 
   const newposition = {
     ...position,
@@ -2837,6 +2857,14 @@ export const getAppLogo = async () => {
         tenant?.favicon || tenant?.logo || appInfo.fev_Icon;
       localStorage.setItem("appname", "OpenSign™");
       localStorage.setItem("favicon", appInfo.fev_Icon);
+      persistBrandPresentation(
+        {
+          appName: tenant?.appname || "OpenSign™",
+          logo: tenant?.logo || appInfo.applogo,
+          favicon: resolvedFavicon
+        },
+        "tenant"
+      );
       return {
         logo: tenant?.logo,
         favicon: resolvedFavicon,
@@ -3431,6 +3459,8 @@ export const convertBase64ToFile = async (pdfName, pdfBase64, imgType) => {
   }
 };
 
+export const isCustomFileAdapter = (fileAdapterId) =>
+  Boolean(fileAdapterId && fileAdapterId !== "opensign");
 // Shared ref that holds a pending scroll restore job for button zoom.
 // RenderPdf reads this in its scale-change useEffect (same pattern as pinch).
 export const pendingButtonZoomScrollRef = { current: null };
@@ -4221,32 +4251,34 @@ function _removeWidgetAnnotations(pdfDoc) {
 }
 
 export const mailTemplate = (param) => {
-  const appName = "OpenSign™";
-  const logo = `<div style='padding:10px'><img src='https://qikinnovation.ams3.digitaloceanspaces.com/logo.png' height='50' /></div>`;
+  const { appName, logoUrl, accentColor } = resolveMailBrandPresentation("");
+  const logo = logoUrl
+    ? `<div style='padding:10px'><img src='${logoUrl}' height='50' /></div>`
+    : "";
 
-  const subject = `${param.senderName} has requested you to sign "${param.title}"`;
+  const subject = `${param.senderName} bittet Sie um die Unterzeichnung von "${param.title}"`;
   const body =
-    "<html><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8' /></head><body><div style='background-color:#f5f5f5;padding:20px'><div style='background:white;padding-bottom:20px'>" +
+    "<html lang='de'><head><meta http-equiv='Content-Type' content='text/html;charset=UTF-8' /></head><body><div style='background-color:#f5f5f5;padding:20px'><div style='background:white;padding-bottom:20px'>" +
     logo +
-    `<div style='padding:2px;font-family:system-ui;background-color:${themeColor}'><p style='font-size:20px;font-weight:400;color:white;padding-left:20px'>Digital Signature Request</p></div><div><p style='padding:20px;font-size:14px;margin-bottom:10px'>` +
+    `<div style='padding:2px;font-family:system-ui;background-color:${accentColor}'><p style='font-size:20px;font-weight:400;color:white;padding-left:20px'>Anfrage zur digitalen Unterzeichnung</p></div><div><p style='padding:20px;font-size:14px;margin-bottom:10px'>` +
     param.senderName +
-    " has requested you to review and sign <strong>" +
+    " bittet Sie, folgendes Dokument zu prüfen und zu unterzeichnen: <strong>" +
     param.title +
-    "</strong>.</p><div style='padding: 5px 0px 5px 25px;display:flex;flex-direction:row;justify-content:space-around'><table><tr><td style='font-weight:bold;font-family:sans-serif;font-size:15px'>Sender</td><td></td><td style='color:#626363;font-weight:bold'>" +
+    "</strong>.</p><div style='padding: 5px 0px 5px 25px;display:flex;flex-direction:row;justify-content:space-around'><table><tr><td style='font-weight:bold;font-family:sans-serif;font-size:15px'>Absender</td><td></td><td style='color:#626363;font-weight:bold'>" +
     param.senderMail +
-    "</td></tr><tr><td style='font-weight:bold;font-family:sans-serif;font-size:15px'>Organization</td><td></td><td style='color:#626363;font-weight:bold'> " +
+    "</td></tr><tr><td style='font-weight:bold;font-family:sans-serif;font-size:15px'>Organisation</td><td></td><td style='color:#626363;font-weight:bold'> " +
     param.organization +
-    "</td></tr><tr><td style='font-weight:bold;font-family:sans-serif;font-size:15px'>Expires on</td><td></td><td style='color:#626363;font-weight:bold'>" +
+    "</td></tr><tr><td style='font-weight:bold;font-family:sans-serif;font-size:15px'>Gültig bis</td><td></td><td style='color:#626363;font-weight:bold'>" +
     param.localExpireDate +
-    "</td></tr><tr><td style='font-weight:bold;font-family:sans-serif;font-size:15px'>Note</td><td></td><td style='color:#626363;font-weight:bold'>" +
+    "</td></tr><tr><td style='font-weight:bold;font-family:sans-serif;font-size:15px'>Hinweis</td><td></td><td style='color:#626363;font-weight:bold'>" +
     param.note +
     "</td></tr><tr><td></td><td></td></tr></table></div> <div style='margin-left:70px'><a target=_blank href=" +
     param.signingUrl +
-    "><button style='padding:12px;background-color:#d46b0f;color:white;border:0px;font-weight:bold;margin-top:30px'>Sign here</button></a></div><div style='display:flex;justify-content:center;margin-top:10px'></div></div></div><div><p> This is an automated email from " +
+    "><button style='padding:12px;background-color:#d46b0f;color:white;border:0px;font-weight:bold;margin-top:30px'>Jetzt unterzeichnen</button></a></div><div style='display:flex;justify-content:center;margin-top:10px'></div></div></div><div><p> Dies ist eine automatisch versendete E-Mail von " +
     appName +
-    ". For any queries regarding this email, please contact the sender " +
+    ". Bei Fragen zu dieser E-Mail wenden Sie sich bitte direkt an den Absender " +
     param.senderMail +
-    " directly.</p></div></div></body></html> ";
+    ".</p></div></div></body></html> ";
   return { subject, body };
 };
 
@@ -4604,7 +4636,7 @@ export const sendEmailToSigners = async (
     ? getDocumentExpDate
     : getTemplateExpDate;
   const newDate = new Date(expireDate);
-  const localExpireDate = newDate.toLocaleDateString("en-US", {
+  const localExpireDate = newDate.toLocaleDateString("de-DE", {
     day: "numeric",
     month: "long",
     year: "numeric"
@@ -4653,7 +4685,7 @@ export const sendEmailToSigners = async (
       if (customizeMail && isCustomize) {
         const replacedRequestBody = customizeMail?.body.replace(/"/g, "'");
         htmlReqBody =
-          "<html><head><meta http-equiv='Content-Type' content='text/html; charset=UTF-8' /></head><body>" +
+          "<html lang='de'><head><meta http-equiv='Content-Type' content='text/html; charset=UTF-8' /></head><body>" +
           replacedRequestBody +
           "</body> </html>";
 
@@ -4680,7 +4712,7 @@ export const sendEmailToSigners = async (
         const mailSubject = defaultMail.subject;
         const replacedRequestBody = mailBody.replace(/"/g, "'");
         const htmlReqBody =
-          "<html><head><meta http-equiv='Content-Type' content='text/html; charset=UTF-8' /></head><body>" +
+          "<html lang='de'><head><meta http-equiv='Content-Type' content='text/html; charset=UTF-8' /></head><body>" +
           replacedRequestBody +
           "</body> </html>";
         const variables = {

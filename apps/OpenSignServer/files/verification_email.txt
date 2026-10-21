@@ -1,6 +1,6 @@
-Welcome!
+Willkommen!
 
-Click the link below to verify your email address:
+Bestätigen Sie Ihre E-Mail-Adresse über den folgenden Link:
 
 {{{link}}}
 

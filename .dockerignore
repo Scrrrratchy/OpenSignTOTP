@@ -1,0 +1,11 @@
+**/node_modules
+**/.test-data
+**/build
+.pnpm-store
+.audit
+.publish
+.git
+.env*
+**/.env*
+apps/OpenSignServer/files/files
+apps/OpenSignServer/exports/*.pdf

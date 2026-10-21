@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, {
+  useState,
+  useEffect,
+} from "react";
 import { Navigate, useNavigate } from "react-router";
 import Parse from "parse";
 import { SaveFileSize } from "../constant/saveFileSize";
@@ -10,12 +13,14 @@ import {
 } from "../utils";
 import axios from "axios";
 import Tooltip from "../primitives/Tooltip";
-import { getSecureUrl, handleSendOTP } from "../constant/Utils";
+import {
+  getSecureUrl,
+  handleSendOTP
+} from "../constant/Utils";
 import ModalUi from "../primitives/ModalUi";
 import Loader from "../primitives/Loader";
 import { useTranslation } from "react-i18next";
 import SelectLanguage from "../components/pdf/SelectLanguage";
-import MfaSettings from "../components/MfaSettings";
 
 function UserProfile() {
   const navigate = useNavigate();
@@ -132,7 +137,7 @@ function UserProfile() {
         Name: obj.Name,
         JobTitle: jobTitle,
         Company: company,
-        Language: obj?.language || ""
+        Language: obj?.language || "",
       };
 
       await axios.put(
@@ -290,6 +295,9 @@ function UserProfile() {
     setDeleteUserRes("");
   };
 
+  const displayName = name || UserProfile?.email || t("profile");
+  const displayRole = localStorage.getItem("_user_role") || "";
+  const displayEmail = UserProfile?.email || "";
   return (
     <React.Fragment>
       {isLoader ? (
@@ -297,202 +305,252 @@ function UserProfile() {
           <Loader />
         </div>
       ) : (
-        <div className="w-full max-w-5xl mx-auto px-3 py-4 md:px-6 md:py-6 relative">
-          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(320px,2fr)] gap-4 items-start">
-            <div className="bg-base-100 text-base-content flex flex-col border border-base-300 shadow-sm rounded-lg w-full overflow-hidden">
-              <div className="flex flex-col sm:flex-row justify-center sm:justify-start items-center gap-4 px-5 py-5 sm:px-6 border-b border-base-300">
-                <div className="w-28 h-28 shrink-0 overflow-hidden rounded-full border border-base-300 bg-base-200">
+        <div className="os-profile-page">
+          <div className="os-profile-card">
+            <aside className="os-profile-identity">
+              <div className="os-profile-identity-header">
+                <span className="os-profile-signal-bars" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </span>
+              </div>
+              <div className="os-profile-portrait-column">
+                <div className="os-profile-avatar">
                   <img
-                    className="object-cover w-full h-full"
+                    className="object-contain w-full h-full"
                     src={Image === "" ? dp : Image}
                     alt={t("profile")}
                   />
                 </div>
-                <div className="min-w-0 text-center sm:text-left flex-1">
-                  <h1 className="text-xl font-semibold break-words">
-                    {localStorage.getItem("username")}
-                  </h1>
-                  <p className="text-sm text-base-content/60 mt-1">
-                    {localStorage.getItem("_user_role")}
-                  </p>
-                  {editmode && (
-                    <input
-                      type="file"
-                      className="op-file-input op-file-input-bordered op-file-input-sm w-full max-w-sm mt-3 text-sm"
-                      accept="image/png, image/gif, image/jpeg"
-                      onChange={fileUpload}
-                    />
-                  )}
-                  {percentage !== 0 && (
-                    <div className="flex items-center gap-x-2 mt-3 max-w-sm">
-                      <div className="h-2 rounded-full flex-1 bg-base-200 overflow-hidden">
-                        <div
-                          className="h-2 rounded-full bg-primary"
-                          style={{ width: `${percentage}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-base-content text-xs tabular-nums">
-                        {percentage}%
-                      </span>
+                {editmode && (
+                  <input
+                    type="file"
+                    className="os-profile-upload op-file-input op-file-input-bordered op-file-input-sm"
+                    accept="image/png, image/gif, image/jpeg"
+                    onChange={fileUpload}
+                  />
+                )}
+                {percentage !== 0 && (
+                  <div className="os-profile-progress">
+                    <div className="os-profile-progress-track">
+                      <div
+                        className="os-profile-progress-bar"
+                        style={{ transform: `scaleX(${percentage / 100})` }}
+                      ></div>
                     </div>
+                    <span>{percentage}%</span>
+                  </div>
+                )}
+              </div>
+              <div className="os-profile-identity-copy">
+                <p className="os-profile-role">{displayRole}</p>
+                <h1>{displayName}</h1>
+                <p className="os-profile-email">{displayEmail}</p>
+              </div>
+            </aside>
+            <main className="os-profile-workspace">
+              <header className="os-profile-workspace-header">
+                <div className="os-profile-title-block">
+                  <h2>{t("profile")}</h2>
+                </div>
+                <div className="os-profile-header-actions">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                        editmode ? handleSubmit(e) : setEditMode(true);
+                    }}
+                    className="op-btn op-btn-primary os-profile-header-button"
+                  >
+                    <i
+                      className={
+                        editmode ? "fa-light fa-check" : "fa-light fa-pen"
+                      }
+                      aria-hidden="true"
+                    />
+                    {editmode ? t("save") : t("edit")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      editmode ? handleCancel() : navigate("/changepassword")
+                    }
+                    className={
+                          "op-btn op-btn-secondary os-profile-header-button"
+                    }
+                  >
+                    <i
+                      className={
+                        editmode
+                          ? "fa-light fa-arrow-rotate-left"
+                          : "fa-light fa-lock-keyhole"
+                      }
+                      aria-hidden="true"
+                    />
+                    {editmode ? t("cancel") : t("change-password")}
+                  </button>
+                </div>
+              </header>
+              <div className="os-profile-workspace-body">
+                <section className="os-profile-section">
+                  <div className="os-profile-section-heading">
+                    <div>
+                      <h3>{t("contact-details")}</h3>
+                    </div>
+                    <span
+                      className="os-profile-section-signal"
+                      aria-hidden="true"
+                    >
+                      <span></span>
+                      <span></span>
+                    </span>
+                  </div>
+                  <div className="os-profile-field-grid">
+                    {editmode && (
+                      <div className="os-profile-field">
+                        <label htmlFor="profile-name">{t("name")}</label>
+                        <input
+                          id="profile-name"
+                          type="text"
+                          value={name}
+                          className="op-input op-input-bordered os-profile-field-input"
+                          onChange={(e) => SetName(e.target.value)}
+                        />
+                      </div>
+                    )}
+                    <div className="os-profile-field">
+                      <label htmlFor="profile-phone">{t("phone")}</label>
+                      {editmode ? (
+                        <input
+                          id="profile-phone"
+                          type="text"
+                          className="op-input op-input-bordered os-profile-field-input"
+                          onChange={(e) => SetPhone(e.target.value)}
+                          value={Phone}
+                        />
+                      ) : (
+                        <p className="os-profile-field-value">{Phone}</p>
+                      )}
+                    </div>
+                    <div className="os-profile-field">
+                      <label htmlFor="profile-company">{t("company")}</label>
+                      {editmode ? (
+                        <input
+                          id="profile-company"
+                          type="text"
+                          value={company}
+                          className="op-input op-input-bordered os-profile-field-input"
+                          onChange={(e) => setCompany(e.target.value)}
+                        />
+                      ) : (
+                        <p className="os-profile-field-value">{company}</p>
+                      )}
+                    </div>
+                    <div className="os-profile-field">
+                      <label htmlFor="profile-job-title">
+                        {t("job-title")}
+                      </label>
+                      {editmode ? (
+                        <input
+                          id="profile-job-title"
+                          type="text"
+                          value={jobTitle}
+                          className="op-input op-input-bordered os-profile-field-input"
+                          onChange={(e) => setJobTitle(e.target.value)}
+                        />
+                      ) : (
+                        <p className="os-profile-field-value">{jobTitle}</p>
+                      )}
+                    </div>
+                  </div>
+                </section>
+                <section className="os-profile-section os-profile-security-section">
+                  <div className="os-profile-section-heading">
+                    <div>
+                      <i
+                        className={
+                          isEmailVerified
+                            ? "fa-light fa-shield-check os-profile-security-heading-icon"
+                            : "fa-light fa-shield-exclamation os-profile-security-heading-icon"
+                        }
+                        aria-hidden="true"
+                      />
+                      <h3>{t("security-section")}</h3>
+                    </div>
+                  </div>
+                  <div className="os-profile-security-content-row">
+                    <div className="os-profile-security-row">
+                      <div>
+                        <p className="os-profile-security-title">
+                          {t("is-email-verified")}
+                        </p>
+                      </div>
+                      <div className="os-profile-security-action">
+                        <span
+                          className={
+                            isEmailVerified
+                              ? "os-profile-status os-profile-status-verified"
+                              : "os-profile-status"
+                          }
+                        >
+                          <i
+                            className={
+                              isEmailVerified
+                                ? "fa-light fa-circle-check"
+                                : "fa-light fa-circle-exclamation"
+                            }
+                            aria-hidden="true"
+                          />
+                          {isEmailVerified ? t("verified") : t("not-verified")}
+                        </span>
+                        {!isEmailVerified && (
+                          <button
+                            type="button"
+                            onClick={() => handleVerifyBtn()}
+                            className="op-link op-link-accent os-profile-verify-button"
+                          >
+                            {t("verify")}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+                <section className="os-profile-section os-profile-language-section">
+                  <div className="os-profile-section-heading">
+                    <div>
+                      <h3>{t("language")}</h3>
+                    </div>
+                  </div>
+                  <div id="profile-language" className="os-profile-language">
+                    <SelectLanguage
+                      isProfile={true}
+                      updateExtUser={updateExtUser}
+                    />
+                  </div>
+                </section>
+              </div>
+              <footer className="os-profile-workspace-footer">
+                <div className="os-profile-danger-content">
+                  <p className="os-profile-danger-title">
+                    <i className="fa-light fa-trash-can" aria-hidden="true" />
+                    <span>{t("delete-account")}</span>
+                  </p>
+                  {extendUser?.[0]?.UserRole !== "contracts_Admin" && (
+                    <p className="os-profile-danger-copy">
+                      {t("delete-action-prohibited")}
+                    </p>
                   )}
                 </div>
-              </div>
-              <ul className="w-full flex flex-col px-5 sm:px-6 text-sm">
-                <li
-                  className={`grid grid-cols-[minmax(110px,0.8fr)_minmax(0,1.2fr)] gap-4 items-center border-b border-base-300 ${
-                    editmode ? "py-2" : "py-3"
-                  }`}
-                >
-                  <span className="font-semibold">{t("name")}:</span>{" "}
-                  {editmode ? (
-                    <input
-                      type="text"
-                      value={name}
-                      className="op-input op-input-bordered op-input-sm w-full focus:outline-none hover:border-base-content text-sm"
-                      onChange={(e) => SetName(e.target.value)}
-                    />
-                  ) : (
-                    <span className="break-words text-right">
-                      {localStorage.getItem("username")}
-                    </span>
-                  )}
-                </li>
-                <li
-                  className={`grid grid-cols-[minmax(110px,0.8fr)_minmax(0,1.2fr)] gap-4 items-center border-b border-base-300 ${
-                    editmode ? "py-2" : "py-3"
-                  }`}
-                >
-                  <span className="font-semibold">{t("phone")}:</span>{" "}
-                  {editmode ? (
-                    <input
-                      type="text"
-                      className="op-input op-input-bordered op-input-sm w-full focus:outline-none hover:border-base-content text-sm"
-                      onChange={(e) => SetPhone(e.target.value)}
-                      value={Phone}
-                    />
-                  ) : (
-                    <span className="break-words text-right">
-                      {UserProfile && UserProfile.phone}
-                    </span>
-                  )}
-                </li>
-                <li className="grid grid-cols-[minmax(110px,0.8fr)_minmax(0,1.2fr)] gap-4 items-center border-b border-base-300 py-3">
-                  <span
-                    data-tooltip-id="email-tooltip"
-                    className="font-semibold flex gap-1"
-                  >
-                    {t("email")} :{" "}
-                    {editmode && (
-                      <Tooltip
-                        message={t("email-help")}
-                        maxWidth="max-w-[250px]"
-                      />
-                    )}
-                  </span>
-                  <span className="break-words text-right">
-                    {UserProfile && UserProfile.email}
-                  </span>
-                </li>
-                <li
-                  className={`grid grid-cols-[minmax(110px,0.8fr)_minmax(0,1.2fr)] gap-4 items-center border-b border-base-300 ${
-                    editmode ? "py-2" : "py-3"
-                  }`}
-                >
-                  <span className="font-semibold">{t("company")}:</span>{" "}
-                  {editmode ? (
-                    <input
-                      type="text"
-                      value={company}
-                      className="op-input op-input-bordered op-input-sm w-full focus:outline-none hover:border-base-content text-sm"
-                      onChange={(e) => setCompany(e.target.value)}
-                    />
-                  ) : (
-                    <span className="break-words text-right">
-                      {extendUser?.[0].Company}
-                    </span>
-                  )}
-                </li>
-                <li
-                  className={`grid grid-cols-[minmax(110px,0.8fr)_minmax(0,1.2fr)] gap-4 items-center border-b border-base-300 ${
-                    editmode ? "py-2" : "py-3"
-                  }`}
-                >
-                  <span className="font-semibold">{t("job-title")}:</span>{" "}
-                  {editmode ? (
-                    <input
-                      type="text"
-                      value={jobTitle}
-                      className="op-input op-input-bordered op-input-sm w-full focus:outline-none hover:border-base-content text-sm"
-                      onChange={(e) => setJobTitle(e.target.value)}
-                    />
-                  ) : (
-                    <span className="break-words text-right">
-                      {extendUser?.[0]?.JobTitle}
-                    </span>
-                  )}
-                </li>
-                <li className="grid grid-cols-[minmax(110px,0.8fr)_minmax(0,1.2fr)] gap-4 items-center border-b border-base-300 py-3">
-                  <span className="font-semibold">
-                    {t("is-email-verified")}:
-                  </span>{" "}
-                  <span className="break-words text-right">
-                    {isEmailVerified ? (
-                      t("verified")
-                    ) : (
-                      <span>
-                        {t("not-verified")} (
-                        <span
-                          onClick={() => handleVerifyBtn()}
-                          className="hover:underline text-blue-600 cursor-pointer"
-                        >
-                          {t("verify")}
-                        </span>
-                        )
-                      </span>
-                    )}
-                  </span>
-                </li>
-                <li
-                  className={`grid grid-cols-[minmax(110px,0.8fr)_minmax(0,1.2fr)] gap-4 items-center border-b border-base-300 ${
-                    editmode ? "py-2" : "py-3"
-                  }`}
-                >
-                  <span className="font-semibold">{t("language")}:</span>{" "}
-                  <SelectLanguage
-                    isProfile={true}
-                    updateExtUser={updateExtUser}
-                  />
-                </li>
-              </ul>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 px-5 py-5 sm:px-6">
                 <button
                   type="button"
-                  onClick={(e) => {
-                    editmode ? handleSubmit(e) : setEditMode(true);
-                  }}
-                  className="op-btn op-btn-primary sm:min-w-[100px]"
-                >
-                  {editmode ? t("save") : t("edit")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    editmode ? handleCancel() : navigate("/changepassword")
-                  }
-                  className={`op-btn ${editmode ? "op-btn-ghost sm:min-w-[100px]" : "op-btn-secondary"}`}
-                >
-                  {editmode ? t("cancel") : t("change-password")}
-                </button>
-                <button
                   onClick={() => handleDeleteAccountBtn()}
-                  className="op-link op-link-accent text-sm sm:ml-auto px-2 py-2"
+                  className="op-link op-link-accent os-profile-delete-action"
                 >
                   {t("delete-account")}
                 </button>
-              </div>
-            </div>
-            <MfaSettings />
+              </footer>
+            </main>
           </div>
           {isdeleteModal && (
             <ModalUi
@@ -557,7 +615,7 @@ function UserProfile() {
                       required
                       type="tel"
                       pattern="[0-9]{4}"
-                      className="w-full op-input op-input-bordered op-input-sm focus:outline-none hover:border-base-content text-xs"
+                      className="w-full op-input op-input-bordered op-input-sm hover:border-base-content text-xs"
                       placeholder={t("otp-placeholder")}
                       value={otp}
                       onChange={(e) => setOtp(e.target.value)}

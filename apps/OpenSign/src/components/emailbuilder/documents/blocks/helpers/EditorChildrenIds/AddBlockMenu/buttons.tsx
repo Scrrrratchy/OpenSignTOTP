@@ -27,7 +27,7 @@ export const BUTTONS: TButtonProps[] = [
     block: () => ({
       type: "Heading",
       data: {
-        props: { text: "Hello friend" },
+        props: { text: "Guten Tag" },
         style: {
           padding: { top: 16, bottom: 16, left: 24, right: 24 }
         }
@@ -117,7 +117,7 @@ export const BUTTONS: TButtonProps[] = [
     block: () => ({
       type: "Html",
       data: {
-        props: { contents: "<strong>Hello world</strong>" },
+        props: { contents: "<strong>Guten Tag</strong>" },
         style: {
           fontSize: 16,
           textAlign: null,

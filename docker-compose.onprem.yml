@@ -1,0 +1,15 @@
+# Build the local source instead of running unmodified upstream images.
+# docker compose -f docker-compose.yml -f docker-compose.onprem.yml up -d --build
+services:
+  server:
+    image: opensign-server-onprem:local
+    build:
+      context: .
+      dockerfile: apps/OpenSignServer/Dockerhubfile
+    environment:
+      TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY:?Set TOTP_ENCRYPTION_KEY to a persistent 32-byte hex key}
+  client:
+    image: opensign-client-onprem:local
+    build:
+      context: .
+      dockerfile: apps/OpenSign/Dockerhubfile

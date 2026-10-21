@@ -1,1 +1,1 @@
-{{appName}} Email Address Verification
+E-Mail-Adresse für {{appName}} bestätigen
