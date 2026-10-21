@@ -66,11 +66,10 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ matrix.image }}:v3.0.0-onprem
-            ${{ matrix.image }}:sha-${{ github.sha }}
+            ${{ matrix.image }}:v3.0.0
           labels: |
             org.opencontainers.image.source=https://github.com/Scrrrratchy/OpenSignTOTP
-            org.opencontainers.image.version=v3.0.0-onprem
+            org.opencontainers.image.version=v3.0.0
             org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha,scope=onprem-${{ matrix.component }}
           cache-to: type=gha,mode=max,scope=onprem-${{ matrix.component }}
