@@ -40,6 +40,10 @@ vi.mock("react-router", () => ({
   Outlet: () => <div>Dashboard</div>
 }));
 vi.mock("../constant/const", () => ({ runtimeUrls: {} }));
+vi.mock("../qa/localQaIdentity", () => ({
+  isLocalQaIdentityEnabled: () => false,
+  exitLocalQaIdentity: vi.fn()
+}));
 vi.mock("../constant/Utils", () => ({ nonPresentMaskCss: {} }));
 vi.mock("../components/Header", () => ({ default: () => null }));
 vi.mock("../components/Footer", () => ({ default: () => null }));

@@ -3,7 +3,7 @@ import { PDFDocument } from "pdf-lib";
 import "../styles/signature.css";
 import Parse from "parse";
 import Confetti from "react-confetti";
-import axios from "axios";
+import { saveTourStatus } from "../utils/tourStatus";
 import RenderAllPdfPage from "../components/pdf/RenderAllPdfPage";
 import EmailComponent from "../components/pdf/EmailComponent";
 import WidgetComponent from "../components/pdf/WidgetComponent";
@@ -43,6 +43,7 @@ import { useParams } from "react-router";
 import Tour from "../primitives/Tour";
 import Signedby from "../components/pdf/Signedby";
 import Header from "../components/pdf/PdfHeader";
+import useWidgetHistory from "../hook/useWidgetHistory";
 import RenderPdf from "../components/pdf/RenderPdf";
 import PlaceholderCopy from "../components/pdf/PlaceholderCopy";
 import DropdownWidgetOption from "../components/pdf/DropdownWidgetOption";
@@ -93,7 +94,8 @@ function SignYourSelf() {
   const [pdfDetails, setPdfDetails] = useState([]);
   const [allPages, setAllPages] = useState(null);
   const [pdfUrl, setPdfUrl] = useState();
-  const [xyPosition, setXyPosition] = useState([]);
+  const [xyPosition, setXyPosition, recordWidgetUpdate, widgetHistory] =
+    useWidgetHistory(false);
   const [pageNumber, setPageNumber] = useState(1);
   const [isEmail, setIsEmail] = useState(false);
   const [signBtnPosition, setSignBtnPosition] = useState([]);
@@ -353,18 +355,19 @@ function SignYourSelf() {
     }
   };
   //function for setting position after drop signature button over pdf
-  const addPositionOfSignature = (item, monitor) => {
+  const addPositionOfSignature = (item, monitor, customOptions) => {
+    const targetPageNumber = customOptions?.pageNumber ?? pageNumber;
     setCurrWidgetsDetails({});
     const key = randomId();
     let dropData = [];
     let dropObj = {};
     let filterDropPos = xyPosition?.filter(
-      (data) => data.pageNumber === pageNumber
+      (data) => data.pageNumber === targetPageNumber
     );
     const dragTypeValue = item?.text ? item.text : monitor.type;
     const containerScale = getContainerScale(
       pdfOriginalWH,
-      pageNumber,
+      targetPageNumber,
       containerWH
     );
     const widgetWidth =
@@ -372,7 +375,27 @@ function SignYourSelf() {
     const widgetHeight =
       defaultWidthHeight(dragTypeValue).height * containerScale;
     //adding and updating drop position in array when user drop signature button in div
-    if (item === "onclick") {
+    if (customOptions?.customPosition) {
+      const { xPosition, yPosition, width, height } =
+        customOptions.customPosition;
+      dropObj = {
+        xPosition,
+        yPosition,
+        key,
+        type: dragTypeValue,
+        scale: containerScale,
+        Width: width,
+        Height: height,
+        options: addWidgetSelfsignOptions(
+          dragTypeValue,
+          getWidgetValue,
+          owner,
+          xyPosition,
+          true
+        )
+      };
+      dropData.push(dropObj);
+    } else if (item === "onclick") {
       // Use the current page container (id="container") so that the
       // height reflects one page, not the entire multi-page document.
       const containerEl =
@@ -459,19 +482,19 @@ function SignYourSelf() {
     }
     if (filterDropPos?.length > 0) {
       const index = xyPosition?.findIndex((object) => {
-        return object.pageNumber === pageNumber;
+        return object.pageNumber === targetPageNumber;
       });
       const updateData = filterDropPos?.[0].pos;
       const newSignPos = updateData.concat(dropData);
-      const xyPos = { pageNumber, pos: newSignPos };
-      setXyPosition((prev) => {
+      const xyPos = { pageNumber: targetPageNumber, pos: newSignPos };
+      recordWidgetUpdate((prev) => {
         const updated = [...prev];
         updated.splice(index, 1, xyPos);
         return updated;
       });
     } else {
-      const xyPos = { pageNumber: pageNumber, pos: dropData };
-      setXyPosition((prev) => [...prev, xyPos]);
+      const xyPos = { pageNumber: targetPageNumber, pos: dropData };
+      recordWidgetUpdate((prev) => [...prev, xyPos]);
     }
     if (dragTypeValue === "checkbox") {
       setIsCheckbox(true);
@@ -489,7 +512,7 @@ function SignYourSelf() {
       setFontSize(12);
       setFontColor("black");
     }
-    setCurrWidgetsDetails({ ...dropObj, pageNumber: pageNumber });
+    setCurrWidgetsDetails({ ...dropObj, pageNumber: targetPageNumber });
   };
 
   //`handleResend` function is used to resend otp for email verification
@@ -858,7 +881,7 @@ function SignYourSelf() {
             }
             return obj;
           });
-          setXyPosition(newUpdateUrl);
+          recordWidgetUpdate(newUpdateUrl);
         }
       }
     }
@@ -923,16 +946,16 @@ function SignYourSelf() {
         return obj;
       });
 
-      setXyPosition(newUpdatePos);
+      recordWidgetUpdate(newUpdatePos);
     } else {
       const getRemainPage = xyPosition.filter(
         (data) => data.pageNumber !== effectivePageNumber
       );
 
       if (getRemainPage && getRemainPage.length > 0) {
-        setXyPosition(getRemainPage);
+        recordWidgetUpdate(getRemainPage);
       } else {
-        setXyPosition([]);
+        recordWidgetUpdate([]);
       }
     }
   };
@@ -984,32 +1007,16 @@ function SignYourSelf() {
     setSignTour(false);
     setIsDontShow(true);
     if (!checkTourStatus && isDontShow) {
-      let updatedTourStatus = [];
-      if (tourStatus.length > 0) {
-        updatedTourStatus = [...tourStatus];
-        const signyourselfIndex = tourStatus.findIndex(
-          (obj) => obj["signyourself"] === false || obj["signyourself"] === true
-        );
-        if (signyourselfIndex !== -1) {
-          updatedTourStatus[signyourselfIndex] = { signyourself: true };
-        } else {
-          updatedTourStatus.push({ signyourself: true });
-        }
-      } else {
-        updatedTourStatus = [{ signyourself: true }];
-      }
       try {
-        await axios.put(
-          `${localStorage.getItem("baseUrl")}classes/contracts${contractName}/${signerUserId}`,
-          { TourStatus: updatedTourStatus },
-          {
-            headers: {
-              "Content-Type": "application/json",
-              "X-Parse-Application-Id": localStorage.getItem("parseAppId"),
-              sessionToken: localStorage.getItem("accesstoken")
-            }
-          }
-        );
+        await saveTourStatus({
+          tourStatus,
+          key: "signyourself",
+          serverUrl: localStorage.getItem("baseUrl"),
+          appId: localStorage.getItem("parseAppId"),
+          sessionToken: localStorage.getItem("accesstoken"),
+          userId: signerUserId,
+          className: `contracts${contractName}`
+        });
       } catch (err) {
         console.log("axois err ", err);
         alert(t("something-went-wrong-mssg"));
@@ -1449,7 +1456,7 @@ function SignYourSelf() {
                   isPageCopy={isPageCopy}
                   setIsPageCopy={setIsPageCopy}
                   xyPosition={xyPosition}
-                  setXyPosition={setXyPosition}
+                  setXyPosition={recordWidgetUpdate}
                   allPages={allPages}
                   pageNumber={currWidgetsDetails?.pageNumber || pageNumber}
                   signKey={currWidgetsDetails?.key}
@@ -1467,6 +1474,7 @@ function SignYourSelf() {
                 />
                 {/* pdf header which contain funish back button */}
                 <Header
+                  widgetHistory={widgetHistory}
                   pageNumber={pageNumber}
                   allPages={allPages}
                   changePage={changePage}
@@ -1491,13 +1499,10 @@ function SignYourSelf() {
                   signerPos={xyPosition}
                   pdfBase64={pdfBase64Url}
                 />
-                <div
-                  ref={divRef}
-                  data-tut="reactourSecond"
-                  className="h-fit"
-                >
+                <div ref={divRef} data-tut="reactourSecond" className="h-fit">
                   {containerWH?.width && (
                     <RenderPdf
+                      isSignYourself={true}
                       pageNumber={pageNumber}
                       setPageNumber={setPageNumber}
                       pdfOriginalWH={pdfOriginalWH}
@@ -1517,7 +1522,7 @@ function SignYourSelf() {
                       pageDetails={pageDetails}
                       pdfLoad={pdfLoad}
                       setPdfLoad={setPdfLoad}
-                      setXyPosition={setXyPosition}
+                      setXyPosition={recordWidgetUpdate}
                       containerWH={containerWH}
                       setIsPageCopy={setIsPageCopy}
                       setIsCheckbox={setIsCheckbox}

@@ -1,5 +1,9 @@
 # Automatische Migration beim Update
 
+Für den Wechsel von unserer 3.0.0 auf 3.1.0 siehe zusätzlich
+[UPGRADE-3.1.0.md](UPGRADE-3.1.0.md). Die vorhandenen Schlüssel und Daten bleiben
+erhalten; der offizielle Release ergänzt keine Datenbankschemamigrationen.
+
 Diese Version führt die Migration vor der Freigabe der Anwendung aus. Es gibt
 keinen parallelen `parse-dbtool`-Prozess mehr. Der öffentliche HTTP-Port bleibt
 geschlossen, bis Schemata, Berechtigungen, Datenübernahme und Indizes erfolgreich

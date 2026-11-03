@@ -3,6 +3,7 @@ import { google } from 'googleapis';
 import fs from 'node:fs';
 import https from 'https';
 import { encodeMimeSubject } from '../../utils/mailHeaders.js';
+import { normalizeMailSubject } from '../../Utils.js';
 const clientId = process.env.GOOGLE_CLIENT_ID;
 const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 // Function to create a Gmail client
@@ -66,7 +67,7 @@ const makeEmail = async (
   testPdf
 ) => {
   const htmlContent = html;
-  const encodedSubject = encodeMimeSubject(subject);
+  const encodedSubject = encodeMimeSubject(normalizeMailSubject(subject));
   const boundary = 'boundary_' + Date.now().toString(16);
   const bccHeader = bcc && bcc.length > 0 ? `BCC: ${bcc.join(',')}\n` : ''; // Construct BCC header if provided
   const ccHeader = cc && cc.length > 0 ? `CC: ${cc.join(',')}\n` : ''; // Construct CC header if provided

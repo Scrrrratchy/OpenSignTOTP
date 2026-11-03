@@ -1,7 +1,7 @@
 import emailPlainText from '../../utils/emailPlainText.js';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
-import { smtpenable, smtpsecure, updateMailCount } from '../../Utils.js';
+import { smtpenable, smtpsecure, normalizeMailSubject, updateMailCount } from '../../Utils.js';
 import { renderComplaintFooter, resolveBrandContext } from '../../utils/brandContext.js';
 import { createTransport } from 'nodemailer';
 async function sendMailProvider(req) {
@@ -47,7 +47,7 @@ async function sendMailProvider(req) {
     const messageParams = {
       from: from + ' <' + mailsender + '>',
       to: req.params.recipient,
-      subject: req.params.subject,
+      subject: normalizeMailSubject(req.params.subject),
       text: req.params.text || emailPlainText(req.params?.html),
       html: req.params?.html ? req.params.html + reportMsg : '',
       bcc: req.params.bcc ? req.params.bcc : undefined,

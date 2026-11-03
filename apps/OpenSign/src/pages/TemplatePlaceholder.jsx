@@ -2,11 +2,13 @@ import { useEffect, useState, useRef } from "react";
 import RenderAllPdfPage from "../components/pdf/RenderAllPdfPage";
 import { useParams, useNavigate, Link } from "react-router";
 import axios from "axios";
+import { saveTourStatus } from "../utils/tourStatus";
 import "../styles/signature.css";
 import WidgetComponent from "../components/pdf/WidgetComponent";
 import Tour from "../primitives/Tour";
 import SignerListPlace from "../components/pdf/SignerListPlace";
 import Header from "../components/pdf/PdfHeader";
+import useWidgetHistory from "../hook/useWidgetHistory";
 import WidgetNameModal from "../components/pdf/WidgetNameModal";
 import {
   copytoData,
@@ -92,7 +94,8 @@ const TemplatePlaceholder = () => {
   const [xySignature, setXYSignature] = useState({});
   const [dragKey, setDragKey] = useState();
   const [signersdata, setSignersData] = useState([]);
-  const [signerPos, setSignerPos] = useState([]);
+  const [signerPos, setSignerPos, recordWidgetUpdate, widgetHistory] =
+    useWidgetHistory();
   const [isSelectListId, setIsSelectId] = useState();
   const [isSendAlert, setIsSendAlert] = useState(false);
   const [isCreateDocModal, setIsCreateDocModal] = useState(false);
@@ -599,7 +602,7 @@ const TemplatePlaceholder = () => {
           const updatesignerPos = signerPos.map((x) =>
             x.Id === uniqueId ? { ...x, placeHolder: updatePlace } : x
           );
-          setSignerPos(updatesignerPos);
+          recordWidgetUpdate(updatesignerPos);
         } else {
           //condition for prefill role to attach prefill widget on multiple page first time there are no any prefill widget exist
           if (roleName === "prefill") {
@@ -612,7 +615,7 @@ const TemplatePlaceholder = () => {
                     ? { ...x, placeHolder: [placeHolder] }
                     : x
               );
-              setSignerPos(updatesignerPos);
+              recordWidgetUpdate(updatesignerPos);
             } //else condition if there are no prefill role exist in array then add prefill widget in placeholder
             else {
               const prefillTextWidget = {
@@ -623,9 +626,9 @@ const TemplatePlaceholder = () => {
                 Role: "prefill",
                 Id: uniqueId
               };
-              const xyPosition = signerPos || [];
+              const xyPosition = [...(signerPos || [])];
               xyPosition.unshift(prefillTextWidget);
-              setSignerPos(xyPosition);
+              recordWidgetUpdate(xyPosition);
             }
           } else {
             //else condition to add placeholder widgets on multiple page first time
@@ -636,7 +639,7 @@ const TemplatePlaceholder = () => {
                   ? { ...x, placeHolder: [placeHolder] }
                   : x
             );
-            setSignerPos(updatesignerPos);
+            recordWidgetUpdate(updatesignerPos);
           }
         }
 
@@ -741,7 +744,7 @@ const TemplatePlaceholder = () => {
               }
               return obj;
             });
-            setSignerPos(newUpdateSigner);
+            recordWidgetUpdate(newUpdateSigner);
           }
         }
       }
@@ -757,7 +760,7 @@ const TemplatePlaceholder = () => {
       signerPos
     );
     if (res) {
-      setSignerPos(res);
+      recordWidgetUpdate(res);
     }
   };
 
@@ -1195,32 +1198,15 @@ const TemplatePlaceholder = () => {
     setTemplateTour(false);
     setIsDontShow(true);
     if (!checkTourStatus && isDontShow) {
-      let updatedTourStatus = [];
-      if (tourStatus.length > 0) {
-        updatedTourStatus = [...tourStatus];
-        const templateIndex = tourStatus.findIndex(
-          (obj) => obj["template"] === false || obj["template"] === true
-        );
-        if (templateIndex !== -1) {
-          updatedTourStatus[templateIndex] = { template: true };
-        } else {
-          updatedTourStatus.push({ template: true });
-        }
-      } else {
-        updatedTourStatus = [{ template: true }];
-      }
       try {
-        await axios.put(
-          `${localStorage.getItem("baseUrl")}classes/contracts_Users/${signerUserId}`,
-          { TourStatus: updatedTourStatus },
-          {
-            headers: {
-              "Content-Type": "application/json",
-              "X-Parse-Application-Id": localStorage.getItem("parseAppId"),
-              sessionToken: localStorage.getItem("accesstoken")
-            }
-          }
-        );
+        await saveTourStatus({
+          tourStatus,
+          key: "template",
+          serverUrl: localStorage.getItem("baseUrl"),
+          appId: localStorage.getItem("parseAppId"),
+          sessionToken: localStorage.getItem("accesstoken"),
+          userId: signerUserId
+        });
         setCheckTourStatus(true);
       } catch (err) {
         console.log("axois err ", err);
@@ -2063,7 +2049,7 @@ const TemplatePlaceholder = () => {
                 isPageCopy={isPageCopy}
                 setIsPageCopy={setIsPageCopy}
                 xyPosition={signerPos}
-                setXyPosition={setSignerPos}
+                setXyPosition={recordWidgetUpdate}
                 allPages={allPages}
                 pageNumber={currWidgetsDetails?.pageNumber || pageNumber}
                 signKey={currWidgetsDetails?.key}
@@ -2074,6 +2060,7 @@ const TemplatePlaceholder = () => {
               />
               {/* pdf header which contain funish back button */}
               <Header
+                widgetHistory={widgetHistory}
                 completeBtnTitle={t("next")}
                 isPlaceholder={true}
                 pageNumber={pageNumber}
@@ -2115,7 +2102,7 @@ const TemplatePlaceholder = () => {
                     handleStop={handleStop}
                     setPdfLoad={setPdfLoad}
                     pdfLoad={pdfLoad}
-                    setSignerPos={setSignerPos}
+                    setSignerPos={recordWidgetUpdate}
                     containerWH={containerWH}
                     setIsResize={setIsResize}
                     setZIndex={setZIndex}

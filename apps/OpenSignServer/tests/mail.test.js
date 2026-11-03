@@ -46,6 +46,20 @@ test('German footer, complaint draft and document shell', () => {
   );
 });
 
+test('3.1.0 subject normalization preserves German text and MIME encoding', async () => {
+  const { normalizeMailSubject, replaceMailVaribles } = await import('../Utils.js');
+  const subject = normalizeMailSubject('OpenSign™: Prüfung für Müller & Söhne');
+  assert.equal(subject, 'opensign: Prüfung für Müller & Söhne');
+  const decoded = [...encodeMimeSubject(subject).matchAll(/=\?UTF-8\?B\?([^?]+)\?=/g)]
+    .map(match => Buffer.from(match[1], 'base64').toString('utf8'))
+    .join('');
+  assert.equal(decoded, subject);
+  assert.equal(
+    replaceMailVaribles('OpenSign™: {{document_title}}', '', { document_title: 'Prüfung' }).subject,
+    'opensign: Prüfung'
+  );
+});
+
 test('text alternative preserves German characters and clickable link targets', () => {
   const result = emailPlainText(
     '<style>hidden</style><p>Guten Tag M&uuml;ller &amp; Co,</p><p><a href="https://example.test/?a=1&amp;b=2">Jetzt unterzeichnen</a></p>'

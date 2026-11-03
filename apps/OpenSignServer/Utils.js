@@ -57,6 +57,9 @@ export const color = [
 ];
 
 export const prefillBlockColor = 'transparent';
+export const normalizeMailSubject = subject =>
+  String(subject || '').replace(/opensign™/gi, 'opensign');
+
 export function replaceMailVaribles(subject, body, variables) {
   let replacedSubject = subject;
   let replacedBody = body;
@@ -70,7 +73,7 @@ export function replaceMailVaribles(subject, body, variables) {
       replacedBody = replacedBody.replace(regex, variables[variable]);
     }
   }
-  const result = { subject: replacedSubject, body: replacedBody };
+  const result = { subject: normalizeMailSubject(replacedSubject), body: replacedBody };
   return result;
 }
 
@@ -261,7 +264,6 @@ function _getWidgetRectServer(widget, pdfDoc) {
     const y2 = _numberFromPdfObjectServer(rectArr.get(3));
 
     if ([x1, y1, x2, y2].some(v => !isFinite(v))) return null;
-
     return {
       x: Math.min(x1, x2),
       y: Math.min(y1, y2),
@@ -686,7 +688,9 @@ export const mailTemplate = param => {
         ? { WhiteLabelAppName: requestedAppName }
         : undefined,
   });
-  const subject = `${param.senderName} bittet Sie um die Unterzeichnung von "${param.title}"`;
+  const subject = normalizeMailSubject(
+    `${param.senderName} bittet Sie um die Unterzeichnung von "${param.title}"`
+  );
   const logo = renderEmailLogo(brand);
   const senderName = escapeHtml(param.senderName);
   const title = escapeHtml(param.title);

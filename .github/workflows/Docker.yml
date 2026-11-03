@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - publish-v3.0.0-onprem
+      - publish-v3.1.0
 
 permissions:
   contents: read
@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.14.0'
+          node-version: '22'
           cache: npm
           cache-dependency-path: apps/OpenSignServer/package-lock.json
       - run: npm ci
@@ -33,6 +33,18 @@ jobs:
       - run: npm run test:mail
       - run: npm run test:mfa
       - run: npm run test:startup
+      - name: Check out the released on-premise 3.0.0 baseline
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: 0a5ee07cb25b07d31a1fdf7fd8869cdbe4f0c651
+          path: .upgrade-baseline
+      - name: Install released baseline dependencies
+        run: npm ci
+        working-directory: .upgrade-baseline/apps/OpenSignServer
+      - name: Verify real 3.0.0 to 3.1.0 upgrade
+        run: npm run test:upgrade
+        env:
+          OPENSIGN_UPGRADE_FROM: ${{ github.workspace }}/.upgrade-baseline/apps/OpenSignServer
 
   test-client:
     name: Verify dashboard tour dismissal
@@ -45,7 +57,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.14.0'
+          node-version: '22'
           cache: npm
           cache-dependency-path: apps/OpenSign/package-lock.json
       - run: npm ci
@@ -85,10 +97,10 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ matrix.image }}:v3.0.0
+            ${{ matrix.image }}:v3.1.0
           labels: |
             org.opencontainers.image.source=https://github.com/Scrrrratchy/OpenSignTOTP
-            org.opencontainers.image.version=v3.0.0
+            org.opencontainers.image.version=v3.1.0
             org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha,scope=onprem-${{ matrix.component }}
           cache-to: type=gha,mode=max,scope=onprem-${{ matrix.component }}

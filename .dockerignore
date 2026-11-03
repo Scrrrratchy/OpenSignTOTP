@@ -9,3 +9,5 @@
 **/.env*
 apps/OpenSignServer/files/files
 apps/OpenSignServer/exports/*.pdf
+
+.upgrade-baseline
