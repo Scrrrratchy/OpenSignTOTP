@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - publish-v3.1.0
+      - publish-v3.1.1
 
 permissions:
   contents: read
@@ -41,10 +41,24 @@ jobs:
       - name: Install released baseline dependencies
         run: npm ci
         working-directory: .upgrade-baseline/apps/OpenSignServer
-      - name: Verify real 3.0.0 to 3.1.0 upgrade
+      - name: Verify real 3.0.0 to 3.1.1 upgrade
         run: npm run test:upgrade
         env:
           OPENSIGN_UPGRADE_FROM: ${{ github.workspace }}/.upgrade-baseline/apps/OpenSignServer
+          OPENSIGN_UPGRADE_VERSION: '3.0.0'
+      - name: Check out the released on-premise 3.1.0 baseline
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: 3bd31490f7ab21de1903b050296b4af5503a616a
+          path: .upgrade-baseline
+      - name: Install 3.1.0 baseline dependencies
+        run: npm ci
+        working-directory: .upgrade-baseline/apps/OpenSignServer
+      - name: Verify real 3.1.0 to 3.1.1 upgrade
+        run: npm run test:upgrade
+        env:
+          OPENSIGN_UPGRADE_FROM: ${{ github.workspace }}/.upgrade-baseline/apps/OpenSignServer
+          OPENSIGN_UPGRADE_VERSION: '3.1.0'
 
   test-client:
     name: Verify dashboard tour dismissal
@@ -97,10 +111,10 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ matrix.image }}:v3.1.0
+            ${{ matrix.image }}:v3.1.1
           labels: |
             org.opencontainers.image.source=https://github.com/Scrrrratchy/OpenSignTOTP
-            org.opencontainers.image.version=v3.1.0
+            org.opencontainers.image.version=v3.1.1
             org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha,scope=onprem-${{ matrix.component }}
           cache-to: type=gha,mode=max,scope=onprem-${{ matrix.component }}

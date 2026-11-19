@@ -1,14 +1,14 @@
 {
-  "version": "3.1.0",
+  "version": "3.1.1",
   "edition": "onpremise",
   "upstream": {
     "repository": "OpenSignLabs/OpenSign",
-    "tag": "v3.1.0",
-    "commit": "322e8f5d7393fd8d61cc06559a3106982d89cffc"
+    "tag": "v3.1.1",
+    "commit": "8373f6de133fceb494722b35c9e43ec288c399a2"
   },
   "baseline": {
-    "version": "3.0.0",
-    "commit": "0a5ee07cb25b07d31a1fdf7fd8869cdbe4f0c651"
+    "version": "3.1.0",
+    "commit": "3bd31490f7ab21de1903b050296b4af5503a616a"
   },
   "databaseSchemaChanges": false
 }

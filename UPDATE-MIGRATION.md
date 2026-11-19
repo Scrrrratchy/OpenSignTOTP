@@ -1,5 +1,7 @@
 # Automatische Migration beim Update
 
+Für das Update auf 3.1.1 siehe [UPGRADE-3.1.1.md](UPGRADE-3.1.1.md).
+
 Für den Wechsel von unserer 3.0.0 auf 3.1.0 siehe zusätzlich
 [UPGRADE-3.1.0.md](UPGRADE-3.1.0.md). Die vorhandenen Schlüssel und Daten bleiben
 erhalten; der offizielle Release ergänzt keine Datenbankschemamigrationen.

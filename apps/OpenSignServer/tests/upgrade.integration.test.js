@@ -32,17 +32,20 @@ function schemaDefinitions(rows) {
   });
 }
 
+const baselineVersion = process.env.OPENSIGN_UPGRADE_VERSION || '3.1.0';
+const targetVersion = '3.1.1';
+
 test(
-  'upgrade the released on-premise 3.0.0 database with the actual 3.1.0 server',
+  `upgrade the released on-premise ${baselineVersion} database with the actual ${targetVersion} server`,
   { timeout: 240000 },
   async t => {
     const previous = path.resolve(
-      process.env.OPENSIGN_UPGRADE_FROM || '../../../OpenSign-3.0.0/apps/OpenSignServer'
+      process.env.OPENSIGN_UPGRADE_FROM || '../../../OpenSign-3.1.0/apps/OpenSignServer'
     );
     assert.notEqual(
       previous,
       path.resolve('.'),
-      'The baseline must be the separate released 3.0.0 source'
+      `The baseline must be the separate released ${baselineVersion} source`
     );
     await fs.access(path.join(previous, 'index.js'));
     const root = path.resolve('.test-data');
@@ -166,7 +169,7 @@ test(
       db = mongo.db();
 
       await t.test(
-        'create real accounts, MFA, administration and content with the released 3.0.0 process',
+        `create real accounts, MFA, administration and content with the released ${baselineVersion} process`,
         async () => {
           await boot(previous);
           const tenantId = (
@@ -260,7 +263,13 @@ test(
           assert.equal(schemaMarkers.length, 1);
           schemaDocuments = await db.collection('_SCHEMA').find({}).sort({ _id: 1 }).toArray();
           originalIndexes = {};
-          for (const collection of ['_User', 'contracts_Contactbook', 'contracts_Document', 'OpenSign_MFA', 'OpenSign_MFAChallenge']) {
+          for (const collection of [
+            '_User',
+            'contracts_Contactbook',
+            'contracts_Document',
+            'OpenSign_MFA',
+            'OpenSign_MFAChallenge',
+          ]) {
             originalIndexes[collection] = await db.collection(collection).listIndexes().toArray();
           }
           assert.equal((await call('adminOverview', {}, admin.sessionToken)).status, 200);
@@ -269,7 +278,7 @@ test(
       );
 
       await t.test(
-        'a wrong key stops the 3.1.0 process and leaves the existing MFA data untouched',
+        `a wrong key stops the ${targetVersion} process and leaves the existing MFA data untouched`,
         async () => {
           await boot(path.resolve('.'), 'ff'.repeat(32), true);
           assert.deepEqual(
@@ -281,7 +290,7 @@ test(
       );
 
       await t.test(
-        '3.1.0 starts against the 3.0.0 database and preserves documents, templates, roles and tour status',
+        `${targetVersion} starts against the ${baselineVersion} database and preserves documents, templates, roles and tour status`,
         async () => {
           await boot(path.resolve('.'));
           assert.deepEqual(
@@ -296,15 +305,24 @@ test(
             await db.collection('_OpenSignMfa').findOne({ _id: member.objectId }),
             beforeMfa
           );
-          upgradedSchemaMarkers = await db.collection('_OpenSignStartupMigrations')
-            .find({ _id: /^schemas:/ }).sort({ _id: 1 }).toArray();
+          upgradedSchemaMarkers = await db
+            .collection('_OpenSignStartupMigrations')
+            .find({ _id: /^schemas:/ })
+            .sort({ _id: 1 })
+            .toArray();
           // The original Windows source and Git/Linux archives can have different
           // line endings and therefore different source fingerprints. An idempotent
           // reconciliation is allowed; existing journals and schema data must survive.
           for (const marker of schemaMarkers) {
-            assert.deepEqual(upgradedSchemaMarkers.find(row => row._id === marker._id), marker);
+            assert.deepEqual(
+              upgradedSchemaMarkers.find(row => row._id === marker._id),
+              marker
+            );
           }
-          assert.deepEqual(schemaDefinitions(await db.collection('_SCHEMA').find({}).sort({ _id: 1 }).toArray()), schemaDefinitions(schemaDocuments));
+          assert.deepEqual(
+            schemaDefinitions(await db.collection('_SCHEMA').find({}).sort({ _id: 1 }).toArray()),
+            schemaDefinitions(schemaDocuments)
+          );
           for (const [collection, indexes] of Object.entries(originalIndexes)) {
             assert.deepEqual(await db.collection(collection).listIndexes().toArray(), indexes);
           }
@@ -339,8 +357,14 @@ test(
           assert.equal((await login(recoveryCodes[0])).body.error, 'MFA_INVALID');
           await stop();
           await boot(path.resolve('.'));
-          assert.deepEqual(await db.collection('_OpenSignStartupMigrations')
-            .find({ _id: /^schemas:/ }).sort({ _id: 1 }).toArray(), upgradedSchemaMarkers);
+          assert.deepEqual(
+            await db
+              .collection('_OpenSignStartupMigrations')
+              .find({ _id: /^schemas:/ })
+              .sort({ _id: 1 })
+              .toArray(),
+            upgradedSchemaMarkers
+          );
           assert.equal((await login(recoveryCodes[0])).body.error, 'MFA_INVALID');
           assert.equal((await login(recoveryCodes[1])).status, 200);
           assert.deepEqual(
